@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <link rel="stylesheet" href="styles/main.css">
+    <title>Writer's Studio</title>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1 id="app-name">Writer's Studio</h1>
+        <div class="theme-toggle">
+            <button id="theme-toggle-btn">Toggle Theme</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <h2>Project</h2>
+            <nav>
+                <ul>
+                    <li><a href="#" class="active">Editor</a></li>
+                    <li><a href="#">Characters</a></li>
+                    <li><a href="#">World Lore</a></li>
+                    <li><a href="#">Notes</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <div class="editor-area">
+            <div class="toolbar">
+                <button>Bold</button>
+                <button>Italic</button>
+                <button>Underline</button>
+                <select>
+                    <option>Arial</option>
+                    <option>Times New Roman</option>
+                    <option>Courier New</option>
+                </select>
+            </div>
+            <div class="editor">
+                <textarea id="editor-content" placeholder="Start writing your masterpiece..."></textarea>
+            </div>
+            <div class="status-bar">
+                <span>Words: 0</span>
+                <span>Characters: 0</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="index.js"></script>
+</body>
+</html>
