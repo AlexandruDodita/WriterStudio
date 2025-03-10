@@ -1,15 +1,17 @@
 {
   "name": "writers-studio",
-  "productName": "writers-studio",
+  "productName": "Writer's Studio",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "A desktop application for writers",
   "main": "main.js",
   "scripts": {
-    "start": "electron-forge start",
+    "start": "electron .",
+    "dev": "electron .",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "publish": "electron-forge publish",
-    "lint": "echo \"No linting configured\""
+    "build": "electron-builder build --win --publish never",
+    "build:mac": "electron-builder build --mac --publish never",
+    "build:linux": "electron-builder build --linux --publish never"
   },
   "keywords": [],
   "author": {
@@ -18,12 +20,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^6.4.6",
-    "@mui/material": "^6.4.6",
-    "electron-squirrel-startup": "^1.0.1",
-    "zustand": "^5.0.3"
+    "electron-squirrel-startup": "^1.0.1"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.7.0",
@@ -34,13 +31,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.7.0",
     "@electron-forge/plugin-fuses": "^7.7.0",
     "@electron/fuses": "^1.8.0",
-    "concurrently": "^9.1.2",
-    "cross-env": "^7.0.3",
     "electron": "^34.3.0",
-    "electron-builder": "^25.1.8",
-    "electron-reload": "^2.0.0-alpha.1",
-    "eslint": "^9.21.0",
-    "prettier": "^3.5.3",
-    "wait-on": "^8.0.2"
+    "electron-builder": "^25.1.8"
   }
 }

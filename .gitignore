@@ -90,3 +90,8 @@ typings/
 
 # Electron-Forge
 out/
+
+# Files to exclude from git
+ACTION_PLAN.md
+PROTOCOL.md
+SUBJECT_GUIDE.md
