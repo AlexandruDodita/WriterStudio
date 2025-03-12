@@ -53,7 +53,7 @@ function init() {
     
     if (!electronAPI) {
         console.error('CRITICAL ERROR: electronAPI is not available from preload script');
-        alert('Application initialization failed. electronAPI is not available.');
+        showCustomDialog('Application Error', 'Application initialization failed. electronAPI is not available.', null, { type: 'notification' });
         return;
     }
     
@@ -98,7 +98,7 @@ async function loadProject(projectPath, electronAPI) {
 
     } catch (error) {
         console.error('Error loading project:', error);
-        alert('Error loading project: ' + error.message);
+        showCustomDialog('Error Loading Project', 'Error loading project: ' + error.message, null, { type: 'notification' });
     }
 }
 
@@ -111,6 +111,7 @@ async function loadProjectSection(section, electronAPI) {
     }
     
     // Set the currentSection so we know which section we're in
+    const previousSection = currentSection;
     currentSection = section;
 
     // Highlight the active section in the sidebar
@@ -122,10 +123,26 @@ async function loadProjectSection(section, electronAPI) {
         }
     });
 
-    // Clear current content if dirty
+    // Check for unsaved changes
     if (isDirty && currentFile) {
-        const shouldDiscard = confirm('You have unsaved changes. Discard them?');
-        if (!shouldDiscard) return;
+        const shouldDiscard = await showConfirmDialog('Unsaved Changes', 'You have unsaved changes. Discard them?');
+        if (!shouldDiscard) {
+            // Revert back to previous section if user cancels
+            currentSection = previousSection;
+            
+            // Reset sidebar selection
+            navItems.forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-section') === previousSection) {
+                    item.classList.add('active');
+                }
+            });
+            
+            return;
+        }
+        
+        // If user agrees to discard changes, clear the dirty flag
+        isDirty = false;
     }
 
     // Remove any existing editor container
@@ -145,7 +162,6 @@ async function loadProjectSection(section, electronAPI) {
     }
     
     currentFile = null;
-    isDirty = false;
 
     try {
         console.log(`Attempting to load ${section} content...`);
@@ -167,6 +183,7 @@ async function loadProjectSection(section, electronAPI) {
         }
     } catch (error) {
         console.error(`Error loading ${section}:`, error);
+        showCustomDialog('Error Loading Section', 'Error loading section: ' + error.message, null, { type: 'notification' });
     }
 }
 
@@ -180,6 +197,7 @@ async function loadChapters(electronAPI) {
 
     } catch (error) {
         console.error('Error loading chapters:', error);
+        showCustomDialog('Error Loading Chapters', 'Error loading chapters: ' + error.message, null, { type: 'notification' });
     }
 }
 
@@ -193,6 +211,7 @@ async function loadCharacters(electronAPI) {
 
     } catch (error) {
         console.error('Error loading characters:', error);
+        showCustomDialog('Error Loading Characters', 'Error loading characters: ' + error.message, null, { type: 'notification' });
     }
 }
 
@@ -206,6 +225,7 @@ async function loadLoreItems(electronAPI) {
 
     } catch (error) {
         console.error('Error loading lore items:', error);
+        showCustomDialog('Error Loading Lore Items', 'Error loading lore items: ' + error.message, null, { type: 'notification' });
     }
 }
 
@@ -219,6 +239,7 @@ async function loadNotes(electronAPI) {
 
     } catch (error) {
         console.error('Error loading notes:', error);
+        showCustomDialog('Error Loading Notes', 'Error loading notes: ' + error.message, null, { type: 'notification' });
     }
 }
 
@@ -226,23 +247,29 @@ async function loadNotes(electronAPI) {
 function displayFileList(files, fileType, electronAPI) {
     console.log(`Displaying file list for ${fileType}:`, files);
     
+    // Get the editor area
+    const editorArea = document.querySelector('.editor-area');
+    if (!editorArea) {
+        console.error('Editor area not found');
+        return;
+    }
+    
     // Remove any existing editor container
     const editorContainer = document.querySelector('.editor-container');
     if (editorContainer) {
         editorContainer.remove();
     }
     
-    // Create container for file list if it doesn't exist
-    let fileListContainer = document.querySelector('.file-list');
-    if (!fileListContainer) {
-        fileListContainer = document.createElement('div');
-        fileListContainer.className = 'file-list';
-        document.querySelector('.editor-area').prepend(fileListContainer);
+    // Remove any existing file list
+    const existingFileList = document.querySelector('.file-list');
+    if (existingFileList) {
+        existingFileList.remove();
     }
-
-    // Clear existing file list
-    fileListContainer.innerHTML = '';
-    fileListContainer.style.display = 'block';
+    
+    // Create new file list container
+    const fileListContainer = document.createElement('div');
+    fileListContainer.className = 'file-list';
+    editorArea.prepend(fileListContainer);
     
     // Set a data attribute to indicate the current section
     fileListContainer.setAttribute('data-section', fileType);
@@ -270,6 +297,7 @@ function displayFileList(files, fileType, electronAPI) {
         fileListContainer.appendChild(emptyMessage);
     } else {
         const filesList = document.createElement('ul');
+        filesList.className = 'files-list';
 
         files.forEach(file => {
             const fileItem = document.createElement('li');
@@ -426,7 +454,9 @@ function displayFileList(files, fileType, electronAPI) {
                 // We'll implement image management functionality later
                 imagesLink.addEventListener('click', (e) => {
                     e.preventDefault();
-                    alert('Image management will be implemented in a future update.');
+                    showCustomDialog('Image Management', 'Image management will be implemented in a future update.', null, { type: 'notification' })
+                        .then(() => {})
+                        .catch(err => console.log('Dialog dismissed'));
                 });
                 
                 imagesFolder.appendChild(imagesLink);
@@ -454,8 +484,8 @@ function getFileTypeTitle(fileType) {
     }
 }
 
-// Create a custom dialog to replace prompt()
-function showCustomDialog(title, message, defaultValue = '') {
+// Create a custom dialog to replace prompt() and alert()
+function showCustomDialog(title, message, defaultValue = '', options = {}) {
     return new Promise((resolve, reject) => {
         // Create overlay
         const overlay = document.createElement('div');
@@ -481,12 +511,121 @@ function showCustomDialog(title, message, defaultValue = '') {
         messageElement.textContent = message;
         body.appendChild(messageElement);
         
-        // Create input field
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'custom-dialog-input';
-        input.value = defaultValue;
-        body.appendChild(input);
+        // Determine if this is a notification or input dialog
+        const isNotification = options.type === 'notification' || defaultValue === null;
+        
+        // Create input field (only if not a notification)
+        if (!isNotification) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'custom-dialog-input';
+            input.value = defaultValue;
+            body.appendChild(input);
+        }
+        
+        // Create actions
+        const actions = document.createElement('div');
+        actions.className = 'custom-dialog-actions';
+        
+        // Only show cancel button if this is not a notification
+        if (!isNotification) {
+            const cancelButton = document.createElement('button');
+            cancelButton.className = 'custom-dialog-btn';
+            cancelButton.textContent = 'Cancel';
+            cancelButton.addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                reject(new Error('Dialog cancelled'));
+            });
+            actions.appendChild(cancelButton);
+        }
+        
+        // Confirm button (for notifications, label as "OK")
+        const confirmButton = document.createElement('button');
+        confirmButton.className = 'custom-dialog-btn custom-dialog-btn-primary';
+        confirmButton.textContent = isNotification ? 'OK' : 'Create';
+        confirmButton.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            if (isNotification) {
+                resolve(true);
+            } else {
+                const input = dialog.querySelector('.custom-dialog-input');
+                const value = input ? input.value.trim() : '';
+                if (value || isNotification) {
+                    resolve(value);
+                } else {
+                    input.focus();
+                }
+            }
+        });
+        
+        actions.appendChild(confirmButton);
+        
+        // Assemble dialog
+        dialog.appendChild(header);
+        dialog.appendChild(body);
+        dialog.appendChild(actions);
+        overlay.appendChild(dialog);
+        
+        // Add to document
+        document.body.appendChild(overlay);
+        
+        // Focus input or confirm button
+        setTimeout(() => {
+            const input = dialog.querySelector('.custom-dialog-input');
+            if (input) {
+                input.focus();
+                
+                // Handle Enter and Escape keys
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        confirmButton.click();
+                    } else if (e.key === 'Escape') {
+                        const cancelButton = dialog.querySelector('.custom-dialog-btn:not(.custom-dialog-btn-primary)');
+                        if (cancelButton) {
+                            cancelButton.click();
+                        }
+                    }
+                });
+            } else {
+                confirmButton.focus();
+                
+                // Handle keyboard for notification dialogs
+                dialog.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                        confirmButton.click();
+                    }
+                });
+            }
+        }, 0);
+    });
+}
+
+// Custom dialog for confirmations (replacing confirm())
+function showConfirmDialog(title, message) {
+    return new Promise((resolve, reject) => {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'custom-dialog-overlay';
+        
+        // Create dialog container
+        const dialog = document.createElement('div');
+        dialog.className = 'custom-dialog';
+        
+        // Create header
+        const header = document.createElement('div');
+        header.className = 'custom-dialog-header';
+        
+        const headerTitle = document.createElement('h3');
+        headerTitle.textContent = title;
+        header.appendChild(headerTitle);
+        
+        // Create body
+        const body = document.createElement('div');
+        body.className = 'custom-dialog-body';
+        
+        const messageElement = document.createElement('p');
+        messageElement.textContent = message;
+        body.appendChild(messageElement);
         
         // Create actions
         const actions = document.createElement('div');
@@ -497,20 +636,15 @@ function showCustomDialog(title, message, defaultValue = '') {
         cancelButton.textContent = 'Cancel';
         cancelButton.addEventListener('click', () => {
             document.body.removeChild(overlay);
-            reject(new Error('Dialog cancelled'));
+            resolve(false);
         });
         
         const confirmButton = document.createElement('button');
         confirmButton.className = 'custom-dialog-btn custom-dialog-btn-primary';
-        confirmButton.textContent = 'Create';
+        confirmButton.textContent = 'Confirm';
         confirmButton.addEventListener('click', () => {
-            const value = input.value.trim();
-            if (value) {
-                document.body.removeChild(overlay);
-                resolve(value);
-            } else {
-                input.focus();
-            }
+            document.body.removeChild(overlay);
+            resolve(true);
         });
         
         actions.appendChild(cancelButton);
@@ -525,17 +659,19 @@ function showCustomDialog(title, message, defaultValue = '') {
         // Add to document
         document.body.appendChild(overlay);
         
-        // Focus input
-        setTimeout(() => input.focus(), 0);
-        
-        // Handle Enter and Escape keys
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                confirmButton.click();
-            } else if (e.key === 'Escape') {
-                cancelButton.click();
-            }
-        });
+        // Focus confirm button
+        setTimeout(() => {
+            confirmButton.focus();
+            
+            // Handle keyboard navigation
+            dialog.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    confirmButton.click();
+                } else if (e.key === 'Escape') {
+                    cancelButton.click();
+                }
+            });
+        }, 0);
     });
 }
 
@@ -702,30 +838,14 @@ function createEnhancedEditor(fileType, files, currentIndex, electronAPI) {
     prevButton.innerHTML = '&larr;';
     prevButton.title = 'Previous';
     prevButton.disabled = currentIndex <= 0;
-    prevButton.addEventListener('click', () => {
+    prevButton.addEventListener('click', async () => {
         if (currentIndex > 0) {
-            // Check for unsaved changes
-            if (isDirty) {
-                const shouldSave = confirm('You have unsaved changes. Save them?');
-                if (shouldSave) {
-                    saveCurrentFile(electronAPI).then(() => {
-                        // Open the previous file
-                        const prevFile = files[currentIndex - 1];
-                        const filePath = prevFile.metadataPath || prevFile.path;
-                        openFile(filePath, electronAPI, { files, currentIndex: currentIndex - 1, fileType });
-                    });
-                } else {
-                    // Discard changes and open the previous file
-                    const prevFile = files[currentIndex - 1];
-                    const filePath = prevFile.metadataPath || prevFile.path;
-                    openFile(filePath, electronAPI, { files, currentIndex: currentIndex - 1, fileType });
-                }
-            } else {
-                // No unsaved changes, open the previous file
-                const prevFile = files[currentIndex - 1];
-                const filePath = prevFile.metadataPath || prevFile.path;
-                openFile(filePath, electronAPI, { files, currentIndex: currentIndex - 1, fileType });
-            }
+            // Get the path of the previous file
+            const prevFile = files[currentIndex - 1];
+            const filePath = prevFile.metadataPath || prevFile.path;
+            
+            // Open the previous file - any unsaved changes will be handled in openFile
+            openFile(filePath, electronAPI, { files, currentIndex: currentIndex - 1, fileType });
         }
     });
     
@@ -744,31 +864,15 @@ function createEnhancedEditor(fileType, files, currentIndex, electronAPI) {
         fileSelect.appendChild(option);
     });
     
-    fileSelect.addEventListener('change', () => {
+    fileSelect.addEventListener('change', async () => {
         const selectedIndex = parseInt(fileSelect.value);
         if (selectedIndex !== currentIndex) {
-            // Check for unsaved changes
-            if (isDirty) {
-                const shouldSave = confirm('You have unsaved changes. Save them?');
-                if (shouldSave) {
-                    saveCurrentFile(electronAPI).then(() => {
-                        // Open the selected file
-                        const selectedFile = files[selectedIndex];
-                        const filePath = selectedFile.metadataPath || selectedFile.path;
-                        openFile(filePath, electronAPI, { files, currentIndex: selectedIndex, fileType });
-                    });
-                } else {
-                    // Discard changes and open the selected file
-                    const selectedFile = files[selectedIndex];
-                    const filePath = selectedFile.metadataPath || selectedFile.path;
-                    openFile(filePath, electronAPI, { files, currentIndex: selectedIndex, fileType });
-                }
-            } else {
-                // No unsaved changes, open the selected file
-                const selectedFile = files[selectedIndex];
-                const filePath = selectedFile.metadataPath || selectedFile.path;
-                openFile(filePath, electronAPI, { files, currentIndex: selectedIndex, fileType });
-            }
+            // Get the path of the selected file
+            const selectedFile = files[selectedIndex];
+            const filePath = selectedFile.metadataPath || selectedFile.path;
+            
+            // Open the selected file - any unsaved changes will be handled in openFile
+            openFile(filePath, electronAPI, { files, currentIndex: selectedIndex, fileType });
         }
     });
     
@@ -780,30 +884,14 @@ function createEnhancedEditor(fileType, files, currentIndex, electronAPI) {
     nextButton.innerHTML = '&rarr;';
     nextButton.title = 'Next';
     nextButton.disabled = currentIndex >= files.length - 1;
-    nextButton.addEventListener('click', () => {
+    nextButton.addEventListener('click', async () => {
         if (currentIndex < files.length - 1) {
-            // Check for unsaved changes
-            if (isDirty) {
-                const shouldSave = confirm('You have unsaved changes. Save them?');
-                if (shouldSave) {
-                    saveCurrentFile(electronAPI).then(() => {
-                        // Open the next file
-                        const nextFile = files[currentIndex + 1];
-                        const filePath = nextFile.metadataPath || nextFile.path;
-                        openFile(filePath, electronAPI, { files, currentIndex: currentIndex + 1, fileType });
-                    });
-                } else {
-                    // Discard changes and open the next file
-                    const nextFile = files[currentIndex + 1];
-                    const filePath = nextFile.metadataPath || nextFile.path;
-                    openFile(filePath, electronAPI, { files, currentIndex: currentIndex + 1, fileType });
-                }
-            } else {
-                // No unsaved changes, open the next file
-                const nextFile = files[currentIndex + 1];
-                const filePath = nextFile.metadataPath || nextFile.path;
-                openFile(filePath, electronAPI, { files, currentIndex: currentIndex + 1, fileType });
-            }
+            // Get the path of the next file
+            const nextFile = files[currentIndex + 1];
+            const filePath = nextFile.metadataPath || nextFile.path;
+            
+            // Open the next file - any unsaved changes will be handled in openFile
+            openFile(filePath, electronAPI, { files, currentIndex: currentIndex + 1, fileType });
         }
     });
     
@@ -836,7 +924,9 @@ function createEnhancedEditor(fileType, files, currentIndex, electronAPI) {
     deleteButton.className = 'action-button delete-button';
     deleteButton.textContent = 'Delete';
     deleteButton.addEventListener('click', () => {
-        alert('Delete functionality will be implemented in a future update.');
+        showCustomDialog('Delete Feature', 'Delete functionality will be implemented in a future update.', null, { type: 'notification' })
+            .then(() => {})
+            .catch(err => console.log('Dialog dismissed'));
     });
     
     actionButtons.appendChild(saveButton);
@@ -862,11 +952,21 @@ function createEnhancedEditor(fileType, files, currentIndex, electronAPI) {
         editorContent.id = 'editor-content';
         editorContent.className = 'editor-content';
         editorContent.placeholder = 'Start writing here...';
-        editorContent.addEventListener('input', () => {
-            isDirty = true;
-            updateWordCount();
-        });
     }
+    
+    // Always recreate event listeners to avoid stale references
+    // Remove existing listeners first (clone and replace)
+    const newEditorContent = editorContent.cloneNode(true);
+    if (editorContent.parentNode) {
+        editorContent.parentNode.replaceChild(newEditorContent, editorContent);
+    }
+    editorContent = newEditorContent;
+    
+    // Add input event listener
+    editorContent.addEventListener('input', () => {
+        isDirty = true;
+        updateWordCount();
+    });
     
     // Create metadata editor area (div for metadata editing)
     const metadataEditor = document.createElement('div');
@@ -900,12 +1000,40 @@ async function openFile(filePath, electronAPI, options = {}) {
     try {
         console.log(`Opening file: ${filePath}`);
         
-        // Check for unsaved changes
-        if (isDirty && currentFile) {
-            const shouldSave = confirm('You have unsaved changes. Save them?');
+        // Check if path is a directory
+        if (filePath.endsWith('/') || filePath.endsWith('\\') || !filePath.includes('.')) {
+            console.warn(`Attempted to open a directory as a file: ${filePath}`);
+            // Handle directories gracefully - for example by opening metadata.json
+            if (filePath.includes('Book Chapters') || 
+                filePath.includes('Characters') || 
+                filePath.includes('World Lore') || 
+                filePath.includes('Notes')) {
+                filePath = path.join(filePath, 'metadata.json');
+            } else {
+                throw new Error(`Cannot open directory as a file: ${filePath}`);
+            }
+        }
+        
+        // Check for unsaved changes only if we have a current file
+        // and it's different from the one we're trying to open
+        if (isDirty && currentFile && currentFile !== filePath) {
+            const shouldSave = await showConfirmDialog('Unsaved Changes', 'You have unsaved changes. Save them?');
             if (shouldSave) {
                 await saveCurrentFile(electronAPI);
             }
+            // The changes are either saved or explicitly discarded, so clear dirty flag
+            isDirty = false;
+        }
+        
+        // Clear existing elements from the content area
+        const existingEditor = document.getElementById('editor-content');
+        if (existingEditor) {
+            existingEditor.remove();
+        }
+        
+        const existingMetadataEditor = document.getElementById('metadata-editor');
+        if (existingMetadataEditor) {
+            existingMetadataEditor.remove();
         }
         
         // Get file type from path or options
@@ -1103,7 +1231,7 @@ async function openFile(filePath, electronAPI, options = {}) {
 
     } catch (error) {
         console.error('Error opening file:', error);
-        alert('Error opening file: ' + error.message);
+        showCustomDialog('Error Opening File', 'Error opening file: ' + error.message, null, { type: 'notification' });
     }
 }
 
@@ -1153,7 +1281,7 @@ async function saveMetadata(form, filePath, electronAPI, existingMetadata = null
         console.log('Metadata saved successfully');
     } catch (error) {
         console.error('Error saving metadata:', error);
-        alert('Error saving metadata: ' + error.message);
+        showCustomDialog('Error Saving Metadata', 'Error saving metadata: ' + error.message, null, { type: 'notification' });
     }
 }
 
@@ -1227,7 +1355,7 @@ async function saveCurrentFile(electronAPI) {
         
     } catch (error) {
         console.error('Error saving file:', error);
-        alert('Error saving file: ' + error.message);
+        showCustomDialog('Error Saving File', 'Error saving file: ' + error.message, null, { type: 'notification' });
     }
 }
 
@@ -1362,21 +1490,10 @@ async function createNewFile(fileType, electronAPI) {
     try {
         console.log(`Creating new file in section: ${currentSection}, file type: ${fileType}`);
         
-        // Use the current section to determine file type if not explicitly provided
-        if (!fileType) {
-            switch (currentSection) {
-                case 'editor': fileType = 'chapter'; break;
-                case 'characters': fileType = 'character'; break;
-                case 'lore': fileType = 'lore'; break;
-                case 'notes': fileType = 'note'; break;
-                default: 
-                    console.error(`Unknown section: ${currentSection}`);
-                    return;
-            }
-            console.log(`Determined file type based on section: ${fileType}`);
-        }
+        // Get the current project directory path
+        if (!currentProject) return;
         
-        // Get the directory path based on file type
+        // Determine the subdirectory based on file type
         let sectionDir;
         let namePrefix;
         
@@ -1398,14 +1515,13 @@ async function createNewFile(fileType, electronAPI) {
                 namePrefix = 'Note';
                 break;
             default:
-                console.error(`Unknown file type: ${fileType}`);
-                return;
+                throw new Error(`Unknown file type: ${fileType}`);
         }
         
         console.log(`Creating new ${fileType} in directory: ${sectionDir}`);
         
-        // Get next available name suggestion
-        const { nextName } = await electronAPI.getNextAvailableName(sectionDir, namePrefix, fileType);
+        // Get a suggested name
+        const { nextName, nextNumber } = await electronAPI.getNextAvailableName(sectionDir, namePrefix, fileType);
         
         // Use custom dialog with the suggested name
         let name;
@@ -1455,6 +1571,7 @@ async function createNewFile(fileType, electronAPI) {
 
         // Create file based on type
         let filePath;
+        
         switch (fileType) {
             case 'chapter':
                 filePath = await electronAPI.createChapter(currentProject, name);
@@ -1469,25 +1586,53 @@ async function createNewFile(fileType, electronAPI) {
                 filePath = await electronAPI.createNote(currentProject, name);
                 break;
         }
-
-        console.log(`Created new ${fileType} at: ${filePath}`);
+        
         if (filePath) {
+            console.log(`Created new ${fileType} at: ${filePath}`);
+            
             // Reload the current section
             await loadProjectSection(currentSection, electronAPI);
-
-            // Open the newly created file
+            
+            // Get the updated files list
+            let files;
+            switch (fileType) {
+                case 'chapter':
+                    files = await electronAPI.getChapters(currentProject);
+                    break;
+                case 'character':
+                    files = await electronAPI.getCharacters(currentProject);
+                    break;
+                case 'lore':
+                    files = await electronAPI.getLoreItems(currentProject);
+                    break;
+                case 'note':
+                    files = await electronAPI.getNotes(currentProject);
+                    break;
+            }
+            
+            // Find the index of the newly created file
+            let newFileIndex = files.findIndex(file => file.path === filePath);
+            if (newFileIndex === -1) {
+                // If not found by path, try finding by name
+                newFileIndex = files.findIndex(file => file.name === name);
+            }
+            
+            // Default to the first item if not found
+            if (newFileIndex === -1) newFileIndex = 0;
+            
+            // Open the newly created file with the correct index
             // For characters and lore items, we want to open the metadata first
             let fileToOpen = filePath;
             if (fileType === 'character' || fileType === 'lore') {
                 fileToOpen = path.join(filePath, 'metadata.json');
             }
             
-            openFile(fileToOpen, electronAPI);
+            openFile(fileToOpen, electronAPI, { files, currentIndex: newFileIndex, fileType });
         }
 
     } catch (error) {
         console.error(`Error creating ${fileType}:`, error);
-        alert(`Error creating ${fileType}: ${error.message}`);
+        showCustomDialog('Error Creating File', 'Error creating file: ' + error.message, null, { type: 'notification' });
     }
 }
 
