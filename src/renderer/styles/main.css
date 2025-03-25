@@ -581,3 +581,113 @@ header {
     color: var(--text-color);
     border-color: #444;
 }
+
+/* Add styles for the save notification */
+.save-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #333;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+}
+
+.save-notification.fade-out {
+    opacity: 0;
+}
+
+/* Add additional styles for editors */
+.editor-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.file-info {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    background-color: #f5f5f5;
+}
+
+.file-info h3 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+}
+
+.file-info p {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+}
+
+.metadata-form {
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input, 
+.form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.form-group textarea {
+    min-height: 100px;
+}
+
+.save-button {
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.save-button:hover {
+    background-color: #45a049;
+}
+
+/* Dark theme modifications */
+.dark-theme .file-info {
+    background-color: #333;
+    border-color: #444;
+}
+
+.dark-theme .file-info h3 {
+    color: #fff;
+}
+
+.dark-theme .file-info p {
+    color: #ccc;
+}
+
+.dark-theme .form-group input,
+.dark-theme .form-group textarea {
+    background-color: #333;
+    color: #fff;
+    border-color: #444;
+}
+
+.dark-theme .save-notification {
+    background-color: #555;
+}
