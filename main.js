@@ -428,8 +428,33 @@ ipcMain.handle('file:getChapters', async (event, projectPath) => {
                     // Read the metadata
                     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
                     
+                    // Read description from description.txt if it exists
+                    let description = metadata.description || '';
+                    if (fs.existsSync(descriptionPath)) {
+                        try {
+                            description = fs.readFileSync(descriptionPath, 'utf8').trim();
+                        } catch (error) {
+                            log('warn', `Failed to read description file: ${descriptionPath}`);
+                        }
+                    }
+                    
+                    // Get word count from content.txt if it exists
+                    let wordCount = 0;
+                    if (fs.existsSync(contentPath)) {
+                        try {
+                            const content = fs.readFileSync(contentPath, 'utf8');
+                            wordCount = content.trim().split(/\s+/).filter(word => word.length > 0).length;
+                        } catch (error) {
+                            log('warn', `Failed to read content file: ${contentPath}`);
+                        }
+                    }
+                    
                     chapters.push({
                         name: metadata.name,
+                        description: description,
+                        wordCount: wordCount,
+                        lastModified: metadata.lastModified || metadata.created,
+                        created: metadata.created,
                         path: itemPath,
                         metadataPath: metadataPath,
                         contentPath: contentPath,
@@ -516,8 +541,25 @@ ipcMain.handle('file:getCharacters', async (event, projectPath) => {
             if (fs.existsSync(metadataPath)) {
                 const metadata = readJsonFile(metadataPath);
                 if (metadata) {
+                    // Read description from profile.txt if it exists
+                    const profilePath = path.join(characterDir, 'profile.txt');
+                    let description = metadata.description || '';
+                    if (fs.existsSync(profilePath)) {
+                        try {
+                            const profileContent = fs.readFileSync(profilePath, 'utf8').trim();
+                            if (profileContent) {
+                                description = profileContent.substring(0, 200) + (profileContent.length > 200 ? '...' : '');
+                            }
+                        } catch (error) {
+                            log('warn', `Failed to read profile file: ${profilePath}`);
+                        }
+                    }
+                    
                     characters.push({
                         name: metadata.name || dirName,
+                        description: description,
+                        lastModified: metadata.lastModified || metadata.created,
+                        created: metadata.created,
                         path: characterDir,
                         metadataPath: metadataPath,
                         type: 'character'
@@ -596,8 +638,25 @@ ipcMain.handle('file:getLoreItems', async (event, projectPath) => {
             if (fs.existsSync(metadataPath)) {
                 const metadata = readJsonFile(metadataPath);
                 if (metadata) {
+                    // Read description from content.txt if it exists
+                    const contentPath = path.join(itemDir, 'content.txt');
+                    let description = metadata.description || '';
+                    if (fs.existsSync(contentPath)) {
+                        try {
+                            const contentText = fs.readFileSync(contentPath, 'utf8').trim();
+                            if (contentText) {
+                                description = contentText.substring(0, 200) + (contentText.length > 200 ? '...' : '');
+                            }
+                        } catch (error) {
+                            log('warn', `Failed to read content file: ${contentPath}`);
+                        }
+                    }
+                    
                     loreItems.push({
                         name: metadata.name || dirName,
+                        description: description,
+                        lastModified: metadata.lastModified || metadata.created,
+                        created: metadata.created,
                         path: itemDir,
                         metadataPath: metadataPath,
                         type: 'lore'
@@ -680,8 +739,24 @@ ipcMain.handle('file:getNotes', async (event, projectPath) => {
                     // Read the metadata
                     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
                     
+                    // Read description from content.txt if it exists
+                    let description = '';
+                    if (fs.existsSync(contentPath)) {
+                        try {
+                            const contentText = fs.readFileSync(contentPath, 'utf8').trim();
+                            if (contentText) {
+                                description = contentText.substring(0, 200) + (contentText.length > 200 ? '...' : '');
+                            }
+                        } catch (error) {
+                            log('warn', `Failed to read content file: ${contentPath}`);
+                        }
+                    }
+                    
                     notes.push({
                         name: metadata.name,
+                        description: description,
+                        lastModified: metadata.lastModified || metadata.created,
+                        created: metadata.created,
                         path: itemPath,
                         metadataPath: metadataPath,
                         contentPath: contentPath,
@@ -974,5 +1049,101 @@ ipcMain.handle('file:getNextAvailableName', async (event, dirPath, basePrefix, f
         };
     } catch (error) {
         return handleError('getting next available name', error);
+    }
+});
+
+// Delete a chapter
+ipcMain.handle('file:deleteChapter', async (event, projectPath, chapterPath) => {
+    log('info', `IPC: file:deleteChapter called for path: ${chapterPath}`);
+    
+    try {
+        if (!fs.existsSync(chapterPath)) {
+            throw new Error(`Chapter directory does not exist: ${chapterPath}`);
+        }
+        
+        // Validate that this is actually a chapter directory
+        if (!chapterPath.includes('Book Chapters')) {
+            throw new Error('Invalid chapter path');
+        }
+        
+        // Remove the entire chapter directory and its contents
+        fs.rmSync(chapterPath, { recursive: true, force: true });
+        log('info', `Successfully deleted chapter directory: ${chapterPath}`);
+        
+        return { success: true, message: 'Chapter deleted successfully' };
+    } catch (error) {
+        return handleError('deleting chapter', error);
+    }
+});
+
+// Delete a character
+ipcMain.handle('file:deleteCharacter', async (event, projectPath, characterPath) => {
+    log('info', `IPC: file:deleteCharacter called for path: ${characterPath}`);
+    
+    try {
+        if (!fs.existsSync(characterPath)) {
+            throw new Error(`Character directory does not exist: ${characterPath}`);
+        }
+        
+        // Validate that this is actually a character directory
+        if (!characterPath.includes('Characters')) {
+            throw new Error('Invalid character path');
+        }
+        
+        // Remove the entire character directory and its contents
+        fs.rmSync(characterPath, { recursive: true, force: true });
+        log('info', `Successfully deleted character directory: ${characterPath}`);
+        
+        return { success: true, message: 'Character deleted successfully' };
+    } catch (error) {
+        return handleError('deleting character', error);
+    }
+});
+
+// Delete a lore item
+ipcMain.handle('file:deleteLoreItem', async (event, projectPath, lorePath) => {
+    log('info', `IPC: file:deleteLoreItem called for path: ${lorePath}`);
+    
+    try {
+        if (!fs.existsSync(lorePath)) {
+            throw new Error(`Lore item directory does not exist: ${lorePath}`);
+        }
+        
+        // Validate that this is actually a lore directory
+        if (!lorePath.includes('World Lore')) {
+            throw new Error('Invalid lore item path');
+        }
+        
+        // Remove the entire lore item directory and its contents
+        fs.rmSync(lorePath, { recursive: true, force: true });
+        log('info', `Successfully deleted lore item directory: ${lorePath}`);
+        
+        return { success: true, message: 'Lore item deleted successfully' };
+    } catch (error) {
+        return handleError('deleting lore item', error);
+    }
+});
+
+// Delete a note
+ipcMain.handle('file:deleteNote', async (event, projectPath, notePath) => {
+    log('info', `IPC: file:deleteNote called for path: ${notePath}`);
+    
+    try {
+        if (!fs.existsSync(notePath)) {
+            throw new Error(`Note directory does not exist: ${notePath}`);
+        }
+        
+        // Validate that this is actually a note directory
+        if (!notePath.includes('Notes')) {
+            throw new Error('Invalid note path');
+        }
+        
+        // Remove the entire note directory and its contents
+        fs.rmSync(notePath, { recursive: true, force: true });
+        log('info', `Successfully deleted note directory: ${notePath}`);
+        
+        return { success: true, message: 'Note deleted successfully' };
+    } catch (error) {
+        return handleError('deleting note', error);
     }
 });

@@ -1,73 +1,218 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
-    <link rel="stylesheet" href="styles/home.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';">
+    <link rel="stylesheet" href="styles/modern.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/home-modern.css">
     <title>Writer's Studio - Home</title>
 </head>
-<body>
-<div class="home-container">
-    <header>
-        <h1 id="app-name">Writer's Studio</h1>
-    </header>
-
-    <div class="home-content">
-        <div class="welcome-section">
-            <h2>Welcome to Writer's Studio</h2>
-            <p>Your creative writing workspace</p>
-        </div>
-
-        <div class="actions-section">
-            <div class="action-card" id="create-project">
-                <div class="card-icon">📝</div>
-                <h3>Create New Project</h3>
-                <p>Start a new writing project</p>
-            </div>
-
-            <div class="action-card" id="open-project">
-                <div class="card-icon">📂</div>
-                <h3>Open Existing Project</h3>
-                <p>Continue working on a project</p>
-            </div>
-        </div>
-
-        <div class="recent-projects">
-            <h3>Recent Projects</h3>
-            <div id="recent-projects-list">
-                <!-- Recent projects will be populated here -->
-                <p class="empty-message">No recent projects found</p>
-            </div>
-        </div>
+<body class="theme-light">
+    <!-- Background Elements -->
+    <div class="background-decoration">
+        <div class="floating-element element-1"></div>
+        <div class="floating-element element-2"></div>
+        <div class="floating-element element-3"></div>
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
     </div>
 
-    <footer>
-        <p>Writer's Studio v0.1.0</p>
-    </footer>
-</div>
-
-<div id="create-project-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn">&times;</span>
-        <h2>Create New Project</h2>
-        <div class="form-group">
-            <label for="project-name">Project Name:</label>
-            <input type="text" id="project-name" placeholder="My Amazing Novel">
-        </div>
-        <div class="form-group">
-            <label for="project-location">Location:</label>
-            <div class="location-input">
-                <input type="text" id="project-location" readonly>
-                <button id="browse-location">Browse</button>
+    <!-- Main Container -->
+    <div class="home-container">
+        <!-- Header -->
+        <header class="home-header">
+            <div class="header-content">
+                <div class="app-branding">
+                    <div class="app-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                    </div>
+                    <h1 class="app-title">Writer's Studio</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="theme-toggle" title="Toggle Theme">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,15.31L23.31,12L20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31Z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
-        </div>
-        <div class="form-actions">
-            <button id="cancel-create">Cancel</button>
-            <button id="confirm-create">Create Project</button>
-        </div>
-    </div>
-</div>
+        </header>
 
-<script type="module" src="home.js"></script>
+        <!-- Main Content -->
+        <main class="home-main">
+            <!-- Hero Section -->
+            <section class="hero-section">
+                <div class="hero-content">
+                    <div class="hero-text">
+                        <h2 class="hero-title">
+                            <span class="title-line">Welcome To</span>
+                            <span class="title-line accent">Writer's Studio</span>
+                        </h2>
+                        <p class="hero-subtitle">
+                            Your creative writing workspace designed for storytellers, novelists, and dreamers. 
+                            Organize your ideas, craft compelling narratives, and bring your stories to life.
+                        </p>
+                    </div>
+                    <div class="hero-visual">
+                        <div class="feature-highlight">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z"/>
+                                </svg>
+                            </div>
+                            <span>Organize Everything</span>
+                        </div>
+                        <div class="feature-highlight">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                                </svg>
+                            </div>
+                            <span>Character Development</span>
+                        </div>
+                        <div class="feature-highlight">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,14H13V16H11V14M11,6H13V12H11V6Z"/>
+                                </svg>
+                            </div>
+                            <span>World Building</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="quick-actions">
+                <div class="actions-grid">
+                    <div class="action-card primary" id="create-project">
+                        <div class="card-decoration"></div>
+                        <div class="card-content">
+                            <div class="card-icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                                </svg>
+                            </div>
+                            <h3 class="card-title">Create New Project</h3>
+                            <p class="card-description">
+                                Start your writing journey with a fresh project. Set up chapters, characters, and world-building elements.
+                            </p>
+                            <div class="card-arrow">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-card secondary" id="open-project">
+                        <div class="card-decoration"></div>
+                        <div class="card-content">
+                            <div class="card-icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"/>
+                                </svg>
+                            </div>
+                            <h3 class="card-title">Open Existing Project</h3>
+                            <p class="card-description">
+                                Continue working on your existing stories. Pick up where you left off and keep the creativity flowing.
+                            </p>
+                            <div class="card-arrow">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Projects -->
+            <section class="recent-projects-section">
+                <div class="section-header">
+                    <h3 class="section-title">Recent Projects</h3>
+                    <p class="section-subtitle">Quick access to your latest work</p>
+                </div>
+                <div class="recent-projects-container" id="recent-projects-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                        </div>
+                        <h4>No recent projects</h4>
+                        <p>Create or open a project to get started</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Features Preview -->
+            <section class="features-section">
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                        </div>
+                        <h4>Chapter Management</h4>
+                        <p>Organize your story into manageable chapters with rich text editing and progress tracking.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/>
+                            </svg>
+                        </div>
+                        <h4>Character Profiles</h4>
+                        <p>Develop detailed character backgrounds, relationships, and arcs to bring your story to life.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,14H13V16H11V14M11,6H13V12H11V6Z"/>
+                            </svg>
+                        </div>
+                        <h4>World Building</h4>
+                        <p>Create rich, detailed worlds with lore, history, and mythology that supports your narrative.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3,3H21V5H3V3M3,7H15V9H3V7M3,11H21V13H3V11M3,15H15V17H3V15M3,19H21V21H3V19Z"/>
+                            </svg>
+                        </div>
+                        <h4>Notes & Ideas</h4>
+                        <p>Capture inspiration and plot ideas with a flexible note-taking system that grows with your story.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="home-footer">
+            <div class="footer-content">
+                <div class="footer-left">
+                    <span class="version">Writer's Studio v0.0.1Dev</span>
+                </div>
+                <div class="footer-right">
+                    <span class="tagline">Crafted for storytellers</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modern Create Project Modal -->
+    <div class="modal-overlay" id="modal-overlay"></div>
+    
+    <!-- Scripts -->
+    <script type="module" src="home.js"></script>
 </body>
 </html>

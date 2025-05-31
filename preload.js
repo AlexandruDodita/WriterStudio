@@ -52,7 +52,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // File management operations
     renameFile: (oldPath, newName) => safeIpcInvoke('file:rename', oldPath, newName),
     checkNameExists: (dirPath, name, fileType) => safeIpcInvoke('file:checkNameExists', dirPath, name, fileType),
-    getNextAvailableName: (dirPath, basePrefix, fileType) => safeIpcInvoke('file:getNextAvailableName', dirPath, basePrefix, fileType)
+    getNextAvailableName: (dirPath, basePrefix, fileType) => safeIpcInvoke('file:getNextAvailableName', dirPath, basePrefix, fileType),
+    
+    // Delete operations
+    deleteChapter: (projectPath, chapterPath) => safeIpcInvoke('file:deleteChapter', projectPath, chapterPath),
+    deleteCharacter: (projectPath, characterPath) => safeIpcInvoke('file:deleteCharacter', projectPath, characterPath),
+    deleteLoreItem: (projectPath, lorePath) => safeIpcInvoke('file:deleteLoreItem', projectPath, lorePath),
+    deleteNote: (projectPath, notePath) => safeIpcInvoke('file:deleteNote', projectPath, notePath)
 });
 
 console.log('Preload script initialized, electron API exposed to renderer process');
