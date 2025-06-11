@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const fsExtra = require('fs-extra');
 
 // Enhanced logging function
 function log(type, message, ...args) {
@@ -480,41 +481,48 @@ ipcMain.handle('file:createChapter', async (event, projectPath, chapterName) => 
     log('info', `IPC: file:createChapter called with name: "${chapterName}"`);
     
     try {
-        const chaptersDir = path.join(projectPath, 'Book Chapters');
+        const chaptersDir = path.join(projectPath, ITEM_TYPE_TO_DIRECTORY_MAP['chapters']); // Use map
         ensureDirectoryExists(chaptersDir);
         
-        // Create a directory-friendly name
-        const dirName = chapterName.replace(/[^a-z0-9]/gi, '_');
-        const chapterDir = path.join(chaptersDir, dirName);
+        // Create a directory-friendly name (item folder name)
+        // The actual display name is stored in metadata or attributes.json if needed.
+        const itemFolderName = chapterName.replace(/[^a-z0-9_-]/gi, '_'); // Allow underscore and hyphen
+        const chapterDir = path.join(chaptersDir, itemFolderName);
         
         if (fs.existsSync(chapterDir)) {
-            throw new Error(`A chapter named "${chapterName}" already exists`);
+            throw new Error(`A chapter folder named "${itemFolderName}" (from "${chapterName}") already exists`);
         }
         
-        // Create chapter directory and images subdirectory
         ensureDirectoryExists(chapterDir);
-        ensureDirectoryExists(path.join(chapterDir, 'images'));
+        // Images subdir is fine if still needed for other purposes
+        ensureDirectoryExists(path.join(chapterDir, 'images')); 
         
-        // Create metadata file
+        // Create metadata file (for general info like display name, dates)
         const metadata = {
-            name: chapterName,
+            name: chapterName, // Store the original, human-readable name
             created: new Date().toISOString(),
-            lastModified: new Date().toISOString(),
-            description: ''
+            lastModified: new Date().toISOString()
+            // Keep other metadata as needed, but description & attributes go to their own files
         };
-        
         const metadataPath = path.join(chapterDir, 'metadata.json');
         writeJsonFile(metadataPath, metadata);
         
-        // Create a chapter content text file
-        const contentPath = path.join(chapterDir, 'content.txt');
-        writeTextFile(contentPath, '');
-        
-        // Create a description text file
+        // Create editor-specific files
+        const contentPath = path.join(chapterDir, 'content.md');
+        writeTextFile(contentPath, ''); // Empty markdown file
+
         const descriptionPath = path.join(chapterDir, 'description.txt');
-        writeTextFile(descriptionPath, '');
+        writeTextFile(descriptionPath, ''); // Empty description file
+
+        const attributesPath = path.join(chapterDir, 'attributes.json');
+        writeJsonFile(attributesPath, {}); // Empty JSON object
         
-        return chapterDir;
+        // Remove old .txt files if they were from a previous structure (optional cleanup)
+        // fs.removeSync(path.join(chapterDir, 'content.txt'));
+        // fs.removeSync(path.join(chapterDir, 'description.txt')); // if old one was also named this
+
+        log('info', `Chapter "${chapterName}" created at ${chapterDir} with MD/JSON structure.`);
+        return { path: chapterDir, name: chapterName }; // Return useful info
     } catch (error) {
         return handleError('creating chapter', error);
     }
@@ -580,38 +588,40 @@ ipcMain.handle('file:createCharacter', async (event, projectPath, characterName)
     log('info', `IPC: file:createCharacter called with name: "${characterName}"`);
     
     try {
-        const charactersDir = path.join(projectPath, 'Characters');
+        const charactersDir = path.join(projectPath, ITEM_TYPE_TO_DIRECTORY_MAP['characters']);
         ensureDirectoryExists(charactersDir);
         
-        // Create a directory-friendly name
-        const dirName = characterName.replace(/[^a-z0-9]/gi, '_');
-        const characterDir = path.join(charactersDir, dirName);
+        const itemFolderName = characterName.replace(/[^a-z0-9_-]/gi, '_');
+        const characterDir = path.join(charactersDir, itemFolderName);
         
         if (fs.existsSync(characterDir)) {
-            throw new Error(`A character named "${characterName}" already exists`);
+            throw new Error(`A character folder named "${itemFolderName}" (from "${characterName}") already exists`);
         }
         
-        // Create character directory and images subdirectory
         ensureDirectoryExists(characterDir);
         ensureDirectoryExists(path.join(characterDir, 'images'));
         
-        // Create metadata file
         const metadata = {
-            name: characterName,
+            name: characterName, // Store original display name
             created: new Date().toISOString(),
-            lastModified: new Date().toISOString(),
-            description: '',
-            attributes: {}
+            lastModified: new Date().toISOString()
+            // Remove description and attributes from here if they were present
         };
-        
         const metadataPath = path.join(characterDir, 'metadata.json');
         writeJsonFile(metadataPath, metadata);
         
-        // Create a character profile text file
-        const profilePath = path.join(characterDir, 'profile.txt');
-        writeTextFile(profilePath, '');
-        
-        return characterDir;
+        // Create editor-specific files
+        const contentPath = path.join(characterDir, 'content.md'); // content.md for profile/details
+        writeTextFile(contentPath, ''); 
+
+        const descriptionPath = path.join(characterDir, 'description.txt');
+        writeTextFile(descriptionPath, ''); 
+
+        const attributesPath = path.join(characterDir, 'attributes.json');
+        writeJsonFile(attributesPath, {}); 
+
+        log('info', `Character "${characterName}" created at ${characterDir} with MD/JSON structure.`);
+        return { path: characterDir, name: characterName };
     } catch (error) {
         return handleError('creating character', error);
     }
@@ -853,6 +863,49 @@ ipcMain.handle('file:saveFile', async (event, content, filePath) => {
         return true;
     } catch (error) {
         return handleError('saving file', error);
+    }
+});
+
+// Check if file exists
+ipcMain.handle('file:exists', async (event, filePath) => {
+    log('info', `IPC: file:exists called for: ${filePath}`);
+    
+    try {
+        return fs.existsSync(filePath);
+    } catch (error) {
+        log('error', `Error checking file existence: ${error.message}`);
+        return false;
+    }
+});
+
+// Read file content
+ipcMain.handle('file:read', async (event, filePath) => {
+    log('info', `IPC: file:read called for: ${filePath}`);
+    
+    try {
+        if (!fs.existsSync(filePath)) {
+            throw new Error(`File not found: ${filePath}`);
+        }
+        
+        return fs.readFileSync(filePath, 'utf8');
+    } catch (error) {
+        return handleError('reading file', error);
+    }
+});
+
+// Write file content
+ipcMain.handle('file:write', async (event, filePath, content) => {
+    log('info', `IPC: file:write called for: ${filePath}`);
+    
+    try {
+        // Ensure directory exists
+        const dirPath = path.dirname(filePath);
+        ensureDirectoryExists(dirPath);
+        
+        fs.writeFileSync(filePath, content, 'utf8');
+        return true;
+    } catch (error) {
+        return handleError('writing file', error);
     }
 });
 
@@ -1145,5 +1198,113 @@ ipcMain.handle('file:deleteNote', async (event, projectPath, notePath) => {
         return { success: true, message: 'Note deleted successfully' };
     } catch (error) {
         return handleError('deleting note', error);
+    }
+});
+
+// Helper function to get base path for an item
+const ITEM_TYPE_TO_DIRECTORY_MAP = {
+    'chapters': 'Book Chapters',
+    'characters': 'Characters',
+    'lore': 'World Lore',
+    'notes': 'Notes'
+    // Add other types if they exist and differ
+};
+
+function getItemBasePath(projectPath, itemType, itemName) {
+    console.log(`[getItemBasePath] Received itemType: "${itemType}", itemName: "${itemName}"`);
+    const directoryName = ITEM_TYPE_TO_DIRECTORY_MAP[itemType] || itemType;
+    console.log(`[getItemBasePath] Mapped directoryName: "${directoryName}"`);
+
+    if (!directoryName) {
+        console.error(`[getItemBasePath] Error: Invalid item type: ${itemType} - no directory mapping found.`);
+        throw new Error(`Invalid item type: ${itemType} - no directory mapping found.`);
+    }
+
+    const itemFolderName = itemName.replace(/[^a-z0-9_-]/gi, '_');
+    console.log(`[getItemBasePath] Filesystem itemFolderName: "${itemFolderName}"`);
+
+    const safeDirectoryName = path.normalize(directoryName).replace(/^(\\.\\.[\\\\\\/])+/, '');
+    const safeItemFolderName = path.normalize(itemFolderName).replace(/^(\\.\\.[\\\\\\/])+/, '');
+    
+    if (!safeDirectoryName || !safeItemFolderName) {
+        console.error('[getItemBasePath] Error: Invalid item type or folder name for path construction after sanitization.');
+        throw new Error('Invalid item type or folder name for path construction after sanitization.');
+    }
+    const finalPath = path.join(projectPath, safeDirectoryName, safeItemFolderName);
+    console.log(`[getItemBasePath] Constructed final path: "${finalPath}"`);
+    return finalPath;
+}
+
+// IPC Handler for getting item details
+ipcMain.handle('get-item-details', async (event, projectPath, itemType, itemName) => {
+    console.log(`IPC: get-item-details called for ${projectPath}, ${itemType}, ${itemName}`);
+    const basePath = getItemBasePath(projectPath, itemType, itemName);
+    const contentPath = path.join(basePath, 'content.md'); // Assuming markdown for content
+    const descriptionPath = path.join(basePath, 'description.txt');
+    const attributesPath = path.join(basePath, 'attributes.json');
+
+    try {
+        const itemData = {
+            content: '',
+            description: '',
+            attributes: {}
+        };
+
+        if (await fsExtra.pathExists(contentPath)) {
+            itemData.content = await fsExtra.readFile(contentPath, 'utf-8');
+        } else {
+            console.warn(`Content file not found: ${contentPath}`);
+        }
+
+        if (await fsExtra.pathExists(descriptionPath)) {
+            itemData.description = await fsExtra.readFile(descriptionPath, 'utf-8');
+        }
+        if (await fsExtra.pathExists(attributesPath)) {
+            const rawAttributes = await fsExtra.readFile(attributesPath, 'utf-8');
+            itemData.attributes = JSON.parse(rawAttributes);
+        } else {
+            // If attributes.json doesn't exist, it's fine, it means no attributes yet.
+        }
+
+        return itemData;
+    } catch (error) {
+        console.error(`Error getting item details for ${itemName}:`, error);
+        throw error; // Rethrow to be caught by the renderer
+    }
+});
+
+// IPC Handler for saving item details
+ipcMain.handle('save-item-details', async (event, projectPath, itemType, itemName, data) => {
+    console.log(`IPC: save-item-details called for ${projectPath}, ${itemType}, ${itemName}`);
+    const basePath = getItemBasePath(projectPath, itemType, itemName);
+
+    // Ensure the base directory for the item exists
+    await fsExtra.ensureDir(basePath);
+
+    const contentPath = path.join(basePath, 'content.md');
+    const descriptionPath = path.join(basePath, 'description.txt');
+    const attributesPath = path.join(basePath, 'attributes.json');
+
+    try {
+        // Save content (if provided, otherwise don't create an empty file unless desired)
+        if (typeof data.content === 'string') {
+            await fsExtra.writeFile(contentPath, data.content, 'utf-8');
+        }
+
+        // Save description (if provided)
+        if (typeof data.description === 'string') {
+            await fsExtra.writeFile(descriptionPath, data.description, 'utf-8');
+        }
+
+        // Save attributes (if provided and is an object)
+        if (data.attributes && typeof data.attributes === 'object') {
+            await fsExtra.writeFile(attributesPath, JSON.stringify(data.attributes, null, 2), 'utf-8');
+        }
+
+        console.log(`Item details saved successfully for ${itemName}`);
+        return { success: true, message: 'Item saved successfully.' };
+    } catch (error) {
+        console.error(`Error saving item details for ${itemName}:`, error);
+        throw error; // Rethrow to be caught by the renderer
     }
 });

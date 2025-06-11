@@ -384,12 +384,23 @@ html, body {
 /* Content Grid */
 .content-grid {
     flex: 1;
-    padding: var(--space-xl);
-    overflow-y: auto;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: var(--space-lg);
-    align-content: start;
+    padding: var(--space-lg);
+    overflow-y: auto;
+}
+
+/* When content-grid is in editor mode */
+.content-grid.editor-mode {
+    display: flex !important;
+    flex-direction: column;
+    padding: var(--space-lg);
+    height: 100%;
+    overflow-y: auto;
+    align-items: stretch;
+    justify-content: flex-start;
+    background-color: var(--primary-bg);
 }
 
 /* Empty State */

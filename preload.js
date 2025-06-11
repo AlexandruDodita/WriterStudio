@@ -58,7 +58,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteChapter: (projectPath, chapterPath) => safeIpcInvoke('file:deleteChapter', projectPath, chapterPath),
     deleteCharacter: (projectPath, characterPath) => safeIpcInvoke('file:deleteCharacter', projectPath, characterPath),
     deleteLoreItem: (projectPath, lorePath) => safeIpcInvoke('file:deleteLoreItem', projectPath, lorePath),
-    deleteNote: (projectPath, notePath) => safeIpcInvoke('file:deleteNote', projectPath, notePath)
+    deleteNote: (projectPath, notePath) => safeIpcInvoke('file:deleteNote', projectPath, notePath),
+
+    // Add new IPC channels for editor functionality
+    getItemDetails: (projectPath, itemType, itemName) => safeIpcInvoke('get-item-details', projectPath, itemType, itemName),
+    saveItemDetails: (projectPath, itemType, itemName, data) => safeIpcInvoke('save-item-details', projectPath, itemType, itemName, data),
+
+    // Make sure to list any other existing IPC channels if they are not shown above
+    getProjectConfig: (projectPath) => safeIpcInvoke('get-project-config', projectPath)
 });
 
 console.log('Preload script initialized, electron API exposed to renderer process');

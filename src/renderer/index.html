@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';">
-    <link rel="stylesheet" href="styles/modern.css">
-    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/modern.css?v=2">
+    <link rel="stylesheet" href="styles/components.css?v=2">
     <title>Writer's Studio</title>
 </head>
 <body class="theme-light">
@@ -79,7 +79,7 @@
             </aside>
 
             <!-- Main Content Area -->
-            <main class="content-area">
+            <main class="content-area" id="main-content-area">
                 <!-- Content Header -->
                 <header class="content-header">
                     <div class="header-left">
@@ -105,21 +105,23 @@
                 <!-- Content Grid -->
                 <div class="content-grid" id="content-grid">
                     <!-- Dynamic content will be loaded here -->
-                    <div class="empty-state" id="empty-state">
-                        <div class="empty-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                            </svg>
-                        </div>
-                        <h3>No chapters yet</h3>
-                        <p>Start your writing journey by creating your first chapter</p>
-                        <button class="action-btn primary" id="empty-create-btn">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
-                            </svg>
-                            <span>Create First Chapter</span>
-                        </button>
+                </div>
+                
+                <!-- Empty State -->
+                <div class="empty-state" id="empty-state">
+                    <div class="empty-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
                     </div>
+                    <h3>No chapters yet</h3>
+                    <p>Start your writing journey by creating your first chapter</p>
+                    <button class="action-btn primary" id="empty-create-btn">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                        </svg>
+                        <span>Create First Chapter</span>
+                    </button>
                 </div>
             </main>
         </div>

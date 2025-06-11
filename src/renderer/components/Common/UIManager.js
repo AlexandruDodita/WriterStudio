@@ -69,9 +69,10 @@ export class UIManager {
      * Create and configure a DOM element
      * @param {string} tag - HTML tag
      * @param {Object} options - Element configuration
+     * @param {Array} children - Child elements to append
      * @returns {Element} Created element
      */
-    createElement(tag, options = {}) {
+    createElement(tag, options = {}, children = []) {
         const element = document.createElement(tag);
         
         if (options.className) {
@@ -105,6 +106,28 @@ export class UIManager {
         if (options.styles) {
             Object.entries(options.styles).forEach(([key, value]) => {
                 element.style[key] = value;
+            });
+        }
+        
+        // Handle special properties for form elements
+        if (options.placeholder && element.tagName === 'TEXTAREA') {
+            element.placeholder = options.placeholder;
+        }
+        
+        if (options.rows && element.tagName === 'TEXTAREA') {
+            element.rows = options.rows;
+        }
+        
+        if (options.htmlFor && element.tagName === 'LABEL') {
+            element.htmlFor = options.htmlFor;
+        }
+        
+        // Append children
+        if (children && Array.isArray(children)) {
+            children.forEach(child => {
+                if (child) {
+                    element.appendChild(child);
+                }
             });
         }
         
@@ -394,5 +417,95 @@ export class UIManager {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Shows a loading indicator over a target element or the body.
+     * @param {HTMLElement} [targetElement=document.body] - The element to cover with the loading indicator.
+     * @param {string} [message='Loading...'] - Optional message to display.
+     * @returns {HTMLElement} The created loading overlay element.
+     */
+    showLoading(targetElement = document.body, message = 'Loading...') {
+        // Prevent multiple loading indicators on the same element
+        this.hideLoading(targetElement); // Remove any existing one first
+
+        const overlayId = `loading-overlay-${targetElement.id || 'global'}`;
+        let existingOverlay = document.getElementById(overlayId);
+        if (existingOverlay) {
+            existingOverlay.remove();
+        }
+
+        const overlay = this.createElement('div', {
+            id: overlayId,
+            className: 'loading-overlay',
+            style: {
+                position: targetElement === document.body ? 'fixed' : 'absolute',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: '9998', // Ensure it's on top, but below critical modals if any
+                color: 'white'
+            }
+        });
+
+        const spinner = this.createElement('div', {
+            className: 'loading-spinner',
+            // Basic spinner using CSS, can be enhanced with SVG or more complex CSS
+            style: {
+                border: '4px solid #f3f3f3', // Light grey
+                borderTop: '4px solid var(--accent-primary, #3498db)', // Blue or theme color
+                borderRadius: '50%',
+                width: '40px',
+                height: '40px',
+                animation: 'spin 1s linear infinite'
+            }
+        });
+
+        // Add keyframes for spinner animation to the document if not already present
+        if (!document.getElementById('loading-spinner-keyframes')) {
+            const styleSheet = this.createElement('style', {
+                id: 'loading-spinner-keyframes',
+                textContent: `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`
+            });
+            document.head.appendChild(styleSheet);
+        }
+
+        overlay.appendChild(spinner);
+
+        if (message) {
+            const loadingMessage = this.createElement('p', {
+                className: 'loading-message',
+                textContent: message,
+                style: { marginTop: '10px', fontSize: '1em' }
+            });
+            overlay.appendChild(loadingMessage);
+        }
+
+        // Store a reference or mark the targetElement if needed
+        targetElement.dataset.isLoading = 'true';
+        targetElement.style.position = (targetElement === document.body || getComputedStyle(targetElement).position !== 'static') ? getComputedStyle(targetElement).position : 'relative'; // Ensure target can host absolute overlay
+        targetElement.appendChild(overlay);
+        return overlay;
+    }
+
+    /**
+     * Hides the loading indicator from a target element or the body.
+     * @param {HTMLElement} [targetElement=document.body] - The element from which to remove the loading indicator.
+     */
+    hideLoading(targetElement = document.body) {
+        const overlayId = `loading-overlay-${targetElement.id || 'global'}`;
+        const overlay = document.getElementById(overlayId);
+        if (overlay && overlay.parentElement === targetElement) {
+            targetElement.removeChild(overlay);
+        }
+        if (targetElement.dataset.isLoading) {
+            delete targetElement.dataset.isLoading;
+        }
     }
 } 

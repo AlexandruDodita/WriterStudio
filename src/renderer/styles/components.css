@@ -593,6 +593,15 @@
     box-shadow: var(--shadow-sm);
 }
 
+.editor-container.editor-fullscreen {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background-color: transparent;
+}
+
 .editor-toolbar {
     display: flex;
     align-items: center;
@@ -626,6 +635,119 @@
     color: var(--text-muted);
 }
 
+/* Modern Multi-Field Editor Component */
+.editor-component {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+    padding: var(--space-lg) !important;
+    background-color: var(--surface-bg) !important;
+    border-radius: var(--radius-lg) !important;
+    min-height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-shadow: var(--shadow-sm) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+.modern-editor {
+    /* Container for the modern editor with proper spacing and layout */
+    max-width: none;
+    width: 100%;
+}
+
+.editor-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.editor-group-content {
+    /* Main content area - no flex properties to avoid conflicts */
+}
+
+.editor-group-description,
+.editor-group-attributes {
+    /* Description and attributes - no flex properties to avoid conflicts */
+}
+
+.editor-label {
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    margin-bottom: var(--space-sm);
+    display: block;
+    letter-spacing: 0.025em;
+}
+
+.editor-textarea {
+    width: 100%;
+    padding: var(--space-lg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--primary-bg);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 18px;
+    line-height: 1.6;
+    resize: vertical;
+    transition: all var(--transition-fast);
+    min-height: 120px;
+    box-sizing: border-box;
+    display: block;
+}
+
+.editor-textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.editor-textarea.editor-content {
+    /* Main content area should be larger */
+    min-height: 400px;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    line-height: 1.8;
+    font-size: 20px;
+}
+
+.editor-textarea.editor-description {
+    /* Description area medium size */
+    min-height: 120px;
+}
+
+.editor-textarea.editor-attributes {
+    /* Attributes area for JSON, smaller */
+    min-height: 100px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: var(--font-size-sm);
+    background-color: var(--tertiary-bg);
+}
+
+.editor-save-button {
+    /* Save button styling - already handled by .btn .btn-primary classes */
+    align-self: center;
+    margin-top: var(--space-xl);
+    padding: var(--space-lg) var(--space-2xl);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+}
+
+/* Dark theme adjustments for editor */
+.theme-dark .editor-component,
+.theme-dark .editor-textarea {
+    background-color: var(--surface-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.theme-dark .editor-textarea:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .modal {
@@ -648,4 +770,183 @@
     .toast {
         max-width: none;
     }
+}
+
+/* When editor is in fullscreen mode */
+.editor-fullscreen .editor-component {
+    border-radius: 0;
+    box-shadow: none;
+    background-color: transparent;
+    padding: var(--space-lg);
 } 
+
+/* Attributes Dropdown Styling */
+.attributes-dropdown {
+    position: relative;
+    min-width: 300px;
+}
+
+.attributes-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.attributes-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.attributes-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm);
+}
+
+.attributes-toggle svg {
+    width: 16px;
+    height: 16px;
+}
+
+.attributes-content {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--surface-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-lg);
+    z-index: 1000;
+    margin-top: var(--space-xs);
+}
+
+.current-attributes {
+    margin-bottom: var(--space-lg);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.attribute-tag {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: var(--tertiary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+    font-size: var(--font-size-sm);
+}
+
+.attribute-key {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.attribute-value {
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.remove-attribute-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: var(--radius-xs);
+    font-size: 16px;
+    line-height: 1;
+    transition: all var(--transition-fast);
+}
+
+.remove-attribute-btn:hover {
+    background: var(--danger-bg);
+    color: var(--danger-text);
+}
+
+.no-attributes {
+    color: var(--text-muted);
+    font-style: italic;
+    margin: 0;
+    padding: var(--space-md);
+    text-align: center;
+}
+
+.attribute-controls {
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--space-lg);
+}
+
+.add-attribute-form {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.attribute-key-select,
+.attribute-value-select {
+    flex: 1;
+    min-width: 120px;
+    padding: var(--space-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--primary-bg);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+}
+
+.add-attribute-btn {
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+}
+
+.new-attribute-form {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.new-key-input,
+.new-value-input {
+    flex: 1;
+    min-width: 120px;
+    padding: var(--space-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--primary-bg);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+}
+
+.save-new-attribute-btn,
+.cancel-new-attribute-btn {
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+}
+
+.add-new-attribute-btn {
+    width: 100%;
+    padding: var(--space-sm);
+    font-size: var(--font-size-sm);
+    text-align: center;
+}
+
+/* Header integration for attributes */
+.content-header .header-actions {
+    align-items: flex-start;
+    gap: var(--space-lg);
+}
+
+.content-header .attributes-dropdown {
+    margin-left: auto;
+}

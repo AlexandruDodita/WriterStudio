@@ -23,6 +23,9 @@ WriterStudio is a modern desktop application designed to help writers organize a
         - **updateContentArea()** - Renders content cards with modern styling and interactive elements.
         - **createContentCard()** - Generates individual content cards with hover effects and action buttons.
         - **handleCreateNew()** - Manages new content creation through modern modal dialogs.
+        - **loadAndShowEditor(itemType, itemName)** - Handles switching to an editor view. Fetches item data (content, description, attributes) using IPC call `getItemDetails`. Loads data into the `Editor` instance. Sets up the editor's save button to call `saveEditorData`.
+        - **fetchItemData(itemType, itemName)** - Makes an IPC call to `window.electronAPI.getItemDetails` to retrieve content, description, and attributes for a specific item from the main process.
+        - **saveEditorData(itemType, itemName)** - Retrieves data from the `Editor` instance via `editor.getData()`. Makes an IPC call to `window.electronAPI.saveItemDetails` to persist the content, description, and attributes to their respective files (content.md, description.txt, attributes.json) in the item's directory.
 
 - **projectManager.js** - Enhanced project management module with improved error handling, async operations, and state management integration.
 - **fileManager.js** - Modernized file operations handler with better async patterns, error recovery, and user feedback through toast notifications.
@@ -40,6 +43,8 @@ WriterStudio is a modern desktop application designed to help writers organize a
         - **createElement()** - Creates DOM elements with comprehensive options and configuration.
         - **animate()** - Handles CSS-based animations with Promise support and fallback timers.
         - **show(), hide(), toggle()** - Element visibility management with smooth transitions.
+        - **showLoading(targetElement, message)** - Displays a loading overlay with a spinner and message on the target element (defaults to document.body).
+        - **hideLoading(targetElement)** - Removes the loading overlay from the target element.
         - **waitForElement()** - Asynchronous element detection using MutationObserver.
         - **copyToClipboard()** - Modern clipboard API with legacy fallback support.
         - **formatFileSize(), formatDate()** - Utility functions for data formatting and display.
@@ -68,7 +73,15 @@ WriterStudio is a modern desktop application designed to help writers organize a
 #### components/Editor/ - Content Editing Components
 - **StatusBar.js** - Modern status display with real-time statistics, file information, and user feedback.
 - **Toolbar.js** - Redesigned toolbar component with modern styling and improved accessibility.
-- **Editor.js** - Enhanced text editor component with better formatting and user experience.
+- **Editor.js** - Enhanced text editor component. Manages a multi-field editing interface including main content (textarea, extensible to rich text), a description/summary field (textarea), and an attributes field (textarea for JSON). Includes a save button. Provides methods for loading data into these fields and retrieving edited data.
+    - **Editor** - Core class for the editing component.
+        - **constructor(uiManager, options)** - Initializes the editor with UIManager and options.
+        - **_buildEditorUI()** - Creates the DOM structure for content, description, attributes textareas, and a save button.
+        - **render(parentElement)** - Appends the editor UI to a parent element.
+        - **loadData({content, description, attributes})** - Populates the editor fields.
+        - **getData()** - Returns an object with current content, description, and parsed attributes.
+        - **clear()** - Clears all editor fields.
+        - **destroy()** - Removes the editor from DOM and cleans up.
 
 #### components/Layout/ - Modern Layout Components
 - **MainContent.js** - Card-based content display system with grid layouts, search functionality, and responsive design.
@@ -131,7 +144,27 @@ The new architecture ensures maintainability, testability, extensibility, and pr
 
 ## Recent Bug Fixes and Improvements
 
-### Critical Home Screen Fixes (Latest Update)
+### Editor Component Integration Fixes (Latest Update)
+- **Fixed UIManager createElement Method** - Added support for `children` parameter, `placeholder`, `rows`, and `htmlFor` properties ensuring proper DOM element creation for textareas and labels
+- **Fixed Button Styling Issues** - Updated Editor.js to use correct CSS classes (`btn btn-primary` instead of `modern-button primary`) ensuring proper button styling with the existing design system
+- **Simplified Container Approach** - Replaced complex editor-container creation with a simplified approach:
+  - Content-grid gets `.editor-mode` class when in editor mode
+  - Switches from grid layout to block layout for editor
+  - Maintains proper height and overflow handling
+  - Avoids DOM structure conflicts
+- **Enhanced Editor CSS** - Improved editor component styling:
+  - Fixed flex property conflicts by removing problematic flex values
+  - Added explicit `min-height: 500px` to ensure editor visibility
+  - Improved textarea styling with thicker borders and explicit `display: block`
+  - Added proper box-sizing and margin spacing for editor groups
+- **Robust Layout Handling** - Modified `updateContentArea()` method for reliable editor rendering:
+  - Uses existing content-grid instead of creating new containers
+  - Proper class management (add/remove `editor-mode`)
+  - Simplified CSS overrides for editor mode
+  - Maintains header visibility and proper layout flow
+- **Form Element Support** - Enhanced UIManager to handle textarea and label properties correctly ensuring all editor form elements render properly
+
+### Critical Home Screen Fixes (Previous Update)
 - **Fixed Invisible Text Issue** - Resolved the "Writer's Studio" title and other text being completely hidden due to improper CSS `background-clip: text` implementation
 - **Corrected CSS Custom Properties** - Updated all CSS custom properties in home-modern.css to use the correctly defined variables from modern.css (e.g., `--text-900` → `--text-primary`, `--primary-700` → `--accent-primary`)
 - **Fixed Scrollbar Visibility** - Enhanced scrollbar styling with proper sizing (12px width), better contrast, and themed colors using `--accent-primary` and `--tertiary-bg`
@@ -205,4 +238,8 @@ The new architecture ensures maintainability, testability, extensibility, and pr
 - **User Feedback** - Delete operations provide clear success/error messages and automatically refresh the content display
 - **Debug Logging** - Added detailed console logging for delete operations to facilitate troubleshooting
 
-These fixes ensure reliable project loading, stable UI interactions, consistent data display across all application features, complete CRUD (Create, Read, Update, Delete) functionality for all content types, and most importantly, a fully functional and visually appealing home screen with proper text visibility and working scrollbars. 
+These fixes ensure reliable project loading, stable UI interactions, consistent data display across all application features, complete CRUD (Create, Read, Update, Delete) functionality for all content types, and most importantly, a fully functional and visually appealing home screen with proper text visibility and working scrollbars.
+
+## Project Data Structure for Editable Items
+
+When an item (e.g., a chapter, character, or lore entry named `MyItemName` under a specific `
