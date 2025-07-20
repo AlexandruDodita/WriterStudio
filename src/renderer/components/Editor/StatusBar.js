@@ -11,7 +11,8 @@ export function updateWordCount() {
     const editorContent = document.getElementById('editor-content');
     if (!editorContent) return;
 
-    const text = editorContent.value;
+    // Handle both input elements and contentEditable elements
+    const text = editorContent.value || editorContent.textContent || editorContent.innerText || '';
     const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
     const charCount = text.length;
 
