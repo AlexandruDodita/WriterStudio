@@ -97,6 +97,25 @@ export class UIManager {
             });
         }
         
+        // Handle direct properties
+        Object.entries(options).forEach(([key, value]) => {
+            if (key !== 'className' && key !== 'id' && key !== 'textContent' && 
+                key !== 'innerHTML' && key !== 'attributes' && key !== 'dataset' && 
+                key !== 'styles' && key !== 'placeholder' && key !== 'rows' && key !== 'htmlFor') {
+                if (key === 'contentEditable' || key === 'spellcheck' || key === 'role' || 
+                    key.startsWith('aria-') || key.startsWith('data-')) {
+                    element.setAttribute(key, value);
+                } else {
+                    try {
+                        element[key] = value;
+                    } catch (e) {
+                        // Fallback to setAttribute for non-standard properties
+                        element.setAttribute(key, value);
+                    }
+                }
+            }
+        });
+        
         if (options.dataset) {
             Object.entries(options.dataset).forEach(([key, value]) => {
                 element.dataset[key] = value;

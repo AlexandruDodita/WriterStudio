@@ -16,6 +16,8 @@ import {
 } from './projectManager.js';
 import { updateWordCount } from './components/Editor/StatusBar.js';
 import { addFormField, addFormTextarea } from './formUtils.js';
+import Editor from './components/Editor/Editor.js';
+import { UIManager } from './components/Common/UIManager.js';
 
 /**
  * Open a file for editing
@@ -126,37 +128,25 @@ export async function openFile(filePath, electronAPI, options = {}) {
             
             editorContainer.appendChild(metadataEditor);
         } else {
-            // For text files, create a text editor
-            const editor = document.createElement('textarea');
-            editor.id = 'editor-content';
-            editor.value = fileContent;
-            
-            // Add event listeners
-            editor.addEventListener('input', () => {
-                setIsDirty(true);
-                updateWordCount();
+            // For text files, create a rich text editor
+            const uiManager = new UIManager();
+            const richTextEditor = new Editor(uiManager, {
+                contentPlaceholder: 'Type or paste your content here!',
+                showToolbar: true,
+                showStatusBar: true,
+                onSave: () => {
+                    saveCurrentFile(electronAPI);
+                }
             });
             
-            // Add editor to container
-            editorContainer.appendChild(editor);
+            // Set the content
+            richTextEditor.setContent(fileContent);
             
-            // Add a status bar for text content
-            const statusBar = document.createElement('div');
-            statusBar.className = 'status-bar';
+            // Render the editor
+            richTextEditor.render(editorContainer);
             
-            const wordCount = document.createElement('span');
-            wordCount.textContent = 'Words: 0';
-            
-            const charCount = document.createElement('span');
-            charCount.textContent = 'Characters: 0';
-            
-            statusBar.appendChild(wordCount);
-            statusBar.appendChild(charCount);
-            
-            editorContainer.appendChild(statusBar);
-            
-            // Update word count
-            updateWordCount();
+            // Store reference for saving
+            editorContainer.richTextEditor = richTextEditor;
         }
         
         // Set dirty flag to false as we just loaded the file
@@ -196,14 +186,14 @@ export async function saveCurrentFile(electronAPI) {
             // Call saveMetadata instead of duplicating code
             await saveMetadata(form, currentFile, electronAPI);
         } else {
-            // For text files, get content from textarea
-            const editor = document.getElementById('editor-content');
-            if (!editor) {
-                console.error('Editor not found');
+            // For text files, get content from rich text editor
+            const editorContainer = document.querySelector('.editor-container');
+            if (!editorContainer || !editorContainer.richTextEditor) {
+                console.error('Rich text editor not found');
                 return;
             }
             
-            const content = editor.value;
+            const content = editorContainer.richTextEditor.getText();
             
             // Save the file via electronAPI
             await electronAPI.writeFile(currentFile, content);
@@ -211,6 +201,7 @@ export async function saveCurrentFile(electronAPI) {
             
             // Mark as not dirty after save
             setIsDirty(false);
+            editorContainer.richTextEditor.markClean();
             
             // Show a brief notification
             const notification = document.createElement('div');
