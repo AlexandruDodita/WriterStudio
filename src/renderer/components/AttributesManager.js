@@ -53,6 +53,11 @@ class AttributesManager {
      * Ensure that attribute files exist for all content types
      */
     async ensureAttributeFiles() {
+        if (!this.electronAPI) {
+            console.warn('electronAPI not available, cannot ensure attribute files');
+            return;
+        }
+
         if (!this.currentProject) return;
 
         for (const contentType of Object.keys(this.defaultTemplates)) {
@@ -74,9 +79,16 @@ class AttributesManager {
      * Load attributes for a specific content type
      */
     async loadAttributes(contentType) {
-        if (!this.currentProject) return this.defaultTemplates[contentType] || {};
+        if (!this.electronAPI) {
+            console.warn('electronAPI not available, using default attributes');
+            return this.defaultTemplates[contentType] || {};
+        }
 
-        // Check cache first
+        if (!this.currentProject) {
+            console.warn('No current project set, using default attributes');
+            return this.defaultTemplates[contentType] || {};
+        }
+
         const cacheKey = `${this.currentProject}_${contentType}`;
         if (this.attributeCache.has(cacheKey)) {
             return this.attributeCache.get(cacheKey);
@@ -100,6 +112,11 @@ class AttributesManager {
      * Save attributes for a specific content type
      */
     async saveAttributes(contentType, attributes) {
+        if (!this.electronAPI) {
+            console.warn('electronAPI not available, cannot save attributes');
+            return false;
+        }
+
         if (!this.currentProject) return false;
 
         try {
