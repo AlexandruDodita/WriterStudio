@@ -1,4 +1,5 @@
 /* Component Styles for WriterStudio */
+@import 'components/editor.css';
 
 /* Modal Components */
 .modal {

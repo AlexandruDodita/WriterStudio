@@ -1,204 +1,404 @@
 /**
- * Editor.js - A component for editing content, descriptions, and attributes.
- *
- * This component provides a structured interface for editing various parts of a creative project item,
- * such as a chapter, character, or lore entry. It separates main content, a summary/description,
- * and a flexible set of attributes (stored as JSON).
- *
- * It's designed to be integrated into the WriterStudio application and relies on a UIManager
- * instance for DOM element creation and manipulation, ensuring consistency with the app's UI framework.
- * The main content area is a textarea by default but can be enhanced to a rich text editor.
+ * Modern Rich Text Editor Component
+ * A fully featured text editor with formatting capabilities
+ * Designed to match the app's modern design system
  */
+
+import { Toolbar } from './Toolbar.js';
+import { updateWordCount } from './StatusBar.js';
+
 class Editor {
-    /**
-     * Constructs an Editor instance.
-     * @param {UIManager} uiManager - An instance of UIManager for DOM manipulation.
-     * @param {object} [options={}] - Configuration options for the editor.
-     * @param {string} [options.contentPlaceholder='Start writing your masterpiece...'] - Placeholder for the main content area.
-     * @param {string} [options.descriptionPlaceholder='A brief summary or description...'] - Placeholder for the description area.
-     * @param {string} [options.attributesPlaceholder='Enter attributes as JSON, e.g., {"genre": "Sci-Fi", "status": "Draft"}'] - Placeholder for the attributes area.
-     */
     constructor(uiManager, options = {}) {
         if (!uiManager || typeof uiManager.createElement !== 'function') {
             throw new Error('Editor requires a valid UIManager instance with a createElement method.');
         }
+        
         this.uiManager = uiManager;
         this.options = {
-            contentPlaceholder: 'Start writing your masterpiece...',
-            descriptionPlaceholder: 'A brief summary or description...',
-            attributesPlaceholder: 'Enter attributes as JSON, e.g., {"key": "value", "setting": "futuristic"}',
+            contentPlaceholder: 'Type or paste your content here!',
+            showToolbar: true,
+            showStatusBar: true,
             ...options
         };
 
         this.editorElement = null;
+        this.toolbarElement = null;
         this.contentArea = null;
-        this.descriptionArea = null;
-        this.attributesArea = null;
+        this.statusBar = null;
+        this.toolbar = null;
+        this.isDirty = false;
 
         this._buildEditorUI();
+        this._setupEventListeners();
     }
 
-    /**
-     * Creates the DOM structure for the editor.
-     * This method is called by the constructor.
-     * @private
-     */
     _buildEditorUI() {
-        console.log('[Editor._buildEditorUI] Starting to build editor UI elements.');
+        console.log('[Editor._buildEditorUI] Building modern rich text editor');
+        
         const createEl = (tag, opts, children) => this.uiManager.createElement(tag, opts, children);
 
-        // Main Content Area
-        this.contentArea = createEl('textarea', {
-            id: 'editor-content-area',
-            className: 'editor-textarea editor-content',
-            placeholder: this.options.contentPlaceholder,
-            rows: 15
-        });
-        console.log('[Editor._buildEditorUI] contentArea created:', this.contentArea);
-        const contentLabel = createEl('label', { 
-            textContent: 'Content:', 
-            htmlFor: 'editor-content-area', 
-            className: 'editor-label' 
-        });
-        const contentGroup = createEl('div', { className: 'editor-group editor-group-content' }, [contentLabel, this.contentArea]);
-        console.log('[Editor._buildEditorUI] contentGroup created:', contentGroup);
-
-        // Description/Summary Area
-        this.descriptionArea = createEl('textarea', {
-            id: 'editor-description-area',
-            className: 'editor-textarea editor-description',
-            placeholder: this.options.descriptionPlaceholder,
-            rows: 5
-        });
-        console.log('[Editor._buildEditorUI] descriptionArea created:', this.descriptionArea);
-        const descriptionLabel = createEl('label', { 
-            textContent: 'Description/Summary:', 
-            htmlFor: 'editor-description-area', 
-            className: 'editor-label' 
-        });
-        const descriptionGroup = createEl('div', { className: 'editor-group editor-group-description' }, [descriptionLabel, this.descriptionArea]);
-        console.log('[Editor._buildEditorUI] descriptionGroup created:', descriptionGroup);
-
-        // Note: Attributes are now managed in the header via AttributesManager
-        // this.attributesArea is still available for backward compatibility but not displayed
-
-        this.saveButton = createEl('button', {
-            textContent: 'Save Item',
-            className: 'btn btn-primary editor-save-button',
-            id: 'editor-save-button'
-        });
-        console.log('[Editor._buildEditorUI] saveButton created:', this.saveButton);
-
+        // Main editor container
         this.editorElement = createEl('div', { 
-            className: 'editor-component modern-editor'
-        }, [
-            contentGroup,
-            descriptionGroup,
-            this.saveButton
-        ]);
-        
-        // Create a hidden attributes area for backward compatibility
-        this.attributesArea = createEl('textarea', {
-            id: 'editor-attributes-area',
-            style: 'display: none;'
+            className: 'modern-rich-editor'
         });
-        console.log('[Editor._buildEditorUI] this.editorElement fully constructed:', this.editorElement);
-        console.log('[Editor._buildEditorUI] innerHTML of editorElement:', this.editorElement.innerHTML);
+
+        // Create toolbar if enabled
+        if (this.options.showToolbar) {
+            this._createToolbar();
+        }
+
+        // Create main content area
+        this._createContentArea();
+
+        // Create status bar if enabled
+        if (this.options.showStatusBar) {
+            this._createStatusBar();
+        }
+
+        // Assemble the editor
+        if (this.toolbarElement) {
+            this.editorElement.appendChild(this.toolbarElement);
+        }
+        this.editorElement.appendChild(this.contentArea);
+        if (this.statusBar) {
+            this.editorElement.appendChild(this.statusBar);
+        }
+
+        console.log('[Editor._buildEditorUI] Modern editor UI built successfully');
     }
 
-    /**
-     * Renders the editor into a given parent DOM element.
-     * @param {HTMLElement} parentElement - The DOM element to append the editor to.
-     */
-    render(parentElement) {
-        console.log('[Editor.render] Attempting to render. Parent:', parentElement, 'Editor element:', this.editorElement);
-        if (!parentElement || typeof parentElement.appendChild !== 'function') {
-            console.error('[Editor.render] Invalid parentElement provided.');
-            return;
-        }
-        if (this.editorElement) {
-            parentElement.appendChild(this.editorElement);
-            console.log('[Editor.render] Editor element appended to parent.');
-        } else {
-            console.error('[Editor.render] Editor UI (this.editorElement) not built or null.');
-        }
+    _createToolbar() {
+        this.toolbar = new Toolbar(this.contentArea);
+        this.toolbarElement = this.toolbar.render();
     }
 
-    /**
-     * Loads data into the editor fields.
-     * @param {object} data - An object containing data for the editor.
-     * @param {string} [data.content=''] - The main content.
-     * @param {string} [data.description=''] - The description or summary.
-     * @param {object} [data.attributes={}] - The attributes, as an object.
-     */
-    loadData({ content = '', description = '', attributes = {} } = {}) {
-        if (!this.contentArea || !this.descriptionArea || !this.attributesArea) {
-            console.warn('Editor fields not available. Ensure render() has been effectively called and UI is present.');
-            return;
-        }
-        this.contentArea.value = content;
-        this.descriptionArea.value = description;
-        try {
-            this.attributesArea.value = Object.keys(attributes).length > 0 ? JSON.stringify(attributes, null, 2) : '';
-        } catch (e) {
-            console.error("Editor.loadData: Error stringifying attributes:", e);
-            this.attributesArea.value = ''; // Clear on error or if empty
-        }
+    _createContentArea() {
+        const createEl = (tag, opts, children) => this.uiManager.createElement(tag, opts, children);
+
+        // Create the main editing container
+        const editorContainer = createEl('div', {
+            className: 'editor-container'
+        });
+
+        // Create the rich text content area
+        this.contentArea = createEl('div', {
+            id: 'editor-content',
+            className: 'editor-content rich-text-area',
+            contentEditable: 'true',
+            spellcheck: 'true',
+            role: 'textbox',
+            'aria-label': 'Rich text editor',
+            'data-placeholder': this.options.contentPlaceholder
+        });
+
+        // Set initial content
+        this.contentArea.innerHTML = '<p><br></p>';
+
+        editorContainer.appendChild(this.contentArea);
     }
 
-    /**
-     * Retrieves the current data from the editor fields.
-     * @returns {object|null} An object with content, description, and attributes, or null if fields are not available.
-     * Attributes are parsed from JSON; if parsing fails, attributes will be an empty object and an error logged.
-     */
-    getData() {
-        if (!this.contentArea || !this.descriptionArea || !this.attributesArea) {
-            console.warn('Editor.getData: Editor fields not available.');
-            return null;
-        }
+    _createStatusBar() {
+        const createEl = (tag, opts, children) => this.uiManager.createElement(tag, opts, children);
 
-        let parsedAttributes = {};
-        const attributesValue = this.attributesArea.value.trim();
-        if (attributesValue) {
-            try {
-                parsedAttributes = JSON.parse(attributesValue);
-            } catch (error) {
-                console.error('Editor.getData: Invalid JSON in attributes. Attributes will be empty.', error);
-                // Optionally, notify the user via ToastManager or similar
-                // For now, we allow saving other fields even if attributes are malformed,
-                // but return empty attributes. A stricter approach might prevent saving.
+        this.statusBar = createEl('div', {
+            className: 'editor-status-bar'
+        });
+
+        const wordCountEl = createEl('span', {
+            className: 'word-count',
+            textContent: 'Words: 0'
+        });
+
+        const charCountEl = createEl('span', {
+            className: 'char-count',
+            textContent: 'Characters: 0'
+        });
+
+        this.statusBar.appendChild(wordCountEl);
+        this.statusBar.appendChild(charCountEl);
+    }
+
+    _setupEventListeners() {
+        if (!this.contentArea) return;
+
+        // Input event for content changes
+        this.contentArea.addEventListener('input', () => {
+            this._markDirty();
+            this._updateStatusBar();
+            if (this.toolbar) {
+                this.toolbar.updateState();
+            }
+        });
+
+        // Selection change for toolbar updates
+        this.contentArea.addEventListener('keyup', () => {
+            if (this.toolbar) {
+                this.toolbar.updateState();
+            }
+        });
+
+        this.contentArea.addEventListener('mouseup', () => {
+            if (this.toolbar) {
+                this.toolbar.updateState();
+            }
+        });
+
+        // Keyboard shortcuts
+        this.contentArea.addEventListener('keydown', (e) => {
+            this._handleKeyboardShortcuts(e);
+        });
+
+        // Paste handling
+        this.contentArea.addEventListener('paste', (e) => {
+            this._handlePaste(e);
+        });
+
+        // Focus/blur handling
+        this.contentArea.addEventListener('focus', () => {
+            this.editorElement.classList.add('focused');
+        });
+
+        this.contentArea.addEventListener('blur', () => {
+            this.editorElement.classList.remove('focused');
+        });
+
+        // Placeholder handling
+        this.contentArea.addEventListener('input', () => {
+            this._updatePlaceholder();
+        });
+
+        this.contentArea.addEventListener('focus', () => {
+            this._updatePlaceholder();
+        });
+
+        this.contentArea.addEventListener('blur', () => {
+            this._updatePlaceholder();
+        });
+    }
+
+    _handleKeyboardShortcuts(e) {
+        if (e.ctrlKey || e.metaKey) {
+            switch (e.key) {
+                case 'b':
+                    e.preventDefault();
+                    document.execCommand('bold', false, null);
+                    break;
+                case 'i':
+                    e.preventDefault();
+                    document.execCommand('italic', false, null);
+                    break;
+                case 'u':
+                    e.preventDefault();
+                    document.execCommand('underline', false, null);
+                    break;
+                case 's':
+                    e.preventDefault();
+                    this._save();
+                    break;
             }
         }
+    }
 
+    _handlePaste(e) {
+        e.preventDefault();
+        
+        // Get plain text and clean it
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        
+        // Insert as paragraphs
+        const lines = cleanText.split('\n');
+        const html = lines.map(line => 
+            line.trim() ? `<p>${this._escapeHtml(line)}</p>` : '<p><br></p>'
+        ).join('');
+        
+        document.execCommand('insertHTML', false, html);
+    }
+
+    _escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    _updatePlaceholder() {
+        const isEmpty = this.contentArea.textContent.trim() === '';
+        this.contentArea.classList.toggle('empty', isEmpty);
+    }
+
+    _updateStatusBar() {
+        if (!this.statusBar) return;
+
+        const text = this.contentArea.textContent || '';
+        const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+        const charCount = text.length;
+
+        const wordCountEl = this.statusBar.querySelector('.word-count');
+        const charCountEl = this.statusBar.querySelector('.char-count');
+
+        if (wordCountEl) wordCountEl.textContent = `Words: ${wordCount}`;
+        if (charCountEl) charCountEl.textContent = `Characters: ${charCount}`;
+
+        // Also update any global word count displays
+        if (typeof updateWordCount === 'function') {
+            updateWordCount();
+        }
+    }
+
+    _markDirty() {
+        if (!this.isDirty) {
+            this.isDirty = true;
+            this.editorElement.classList.add('dirty');
+            
+            // Trigger global dirty state if available
+            if (typeof setIsDirty === 'function') {
+                setIsDirty(true);
+            }
+        }
+    }
+
+    _save() {
+        // Override this method or provide a save callback
+        console.log('Save triggered');
+        if (this.options.onSave) {
+            this.options.onSave(this.getContent());
+        }
+    }
+
+    /**
+     * Renders the editor into a given parent DOM element
+     */
+    render(parentElement) {
+        console.log('[Editor.render] Rendering modern editor');
+        if (!parentElement || typeof parentElement.appendChild !== 'function') {
+            console.error('[Editor.render] Invalid parentElement provided');
+            return;
+        }
+        
+        if (this.editorElement) {
+            parentElement.appendChild(this.editorElement);
+            
+            // Focus the editor after a short delay
+            setTimeout(() => {
+                if (this.contentArea) {
+                    this.contentArea.focus();
+                    this._updatePlaceholder();
+                    this._updateStatusBar();
+                }
+            }, 100);
+            
+            console.log('[Editor.render] Modern editor rendered successfully');
+        } else {
+            console.error('[Editor.render] Editor element not built');
+        }
+    }
+
+    /**
+     * Get the current content as HTML
+     */
+    getContent() {
+        if (!this.contentArea) return '';
+        return this.contentArea.innerHTML;
+    }
+
+    /**
+     * Get the current content as plain text
+     */
+    getText() {
+        if (!this.contentArea) return '';
+        return this.contentArea.textContent || '';
+    }
+
+    /**
+     * Set the editor content
+     */
+    setContent(content) {
+        if (!this.contentArea) return;
+        
+        if (typeof content === 'string') {
+            // If it's plain text, wrap in paragraphs
+            if (!content.includes('<')) {
+                const lines = content.split('\n');
+                content = lines.map(line => 
+                    line.trim() ? `<p>${this._escapeHtml(line)}</p>` : '<p><br></p>'
+                ).join('');
+            }
+            this.contentArea.innerHTML = content || '<p><br></p>';
+        }
+        
+        this._updatePlaceholder();
+        this._updateStatusBar();
+        this.isDirty = false;
+        this.editorElement.classList.remove('dirty');
+    }
+
+    /**
+     * Load data into the editor (backward compatibility)
+     */
+    loadData({ content = '', description = '', attributes = {} } = {}) {
+        this.setContent(content);
+        
+        // Store other data for potential use
+        this._metadata = { description, attributes };
+    }
+
+    /**
+     * Get current data (backward compatibility)
+     */
+    getData() {
         return {
-            content: this.contentArea.value,
-            description: this.descriptionArea.value,
-            attributes: parsedAttributes,
+            content: this.getText(), // Return plain text for compatibility
+            description: this._metadata?.description || '',
+            attributes: this._metadata?.attributes || {}
         };
     }
 
     /**
-     * Clears all fields in the editor.
+     * Clear the editor content
      */
     clear() {
-        this.loadData(); // Load with default empty values
+        this.setContent('');
     }
 
     /**
-     * Removes the editor element from the DOM and performs any necessary cleanup.
-     * Future enhancements: Detach rich text editor event listeners, etc.
+     * Focus the editor
+     */
+    focus() {
+        if (this.contentArea) {
+            this.contentArea.focus();
+        }
+    }
+
+    /**
+     * Check if editor has unsaved changes
+     */
+    isDirtyState() {
+        return this.isDirty;
+    }
+
+    /**
+     * Mark editor as clean (saved)
+     */
+    markClean() {
+        this.isDirty = false;
+        this.editorElement.classList.remove('dirty');
+    }
+
+    /**
+     * Destroy the editor and clean up
      */
     destroy() {
         if (this.editorElement && this.editorElement.parentElement) {
             this.editorElement.parentElement.removeChild(this.editorElement);
         }
+        
         this.editorElement = null;
         this.contentArea = null;
-        this.descriptionArea = null;
-        this.attributesArea = null;
-        // Add any other cleanup specific to rich text editors or other integrations here.
+        this.toolbarElement = null;
+        this.statusBar = null;
+        this.toolbar = null;
+        this._metadata = null;
     }
 }
 
-// Assuming ES6 module environment as per project structure
 export default Editor;
