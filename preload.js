@@ -59,8 +59,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteCharacter: (projectPath, characterPath) => safeIpcInvoke('file:deleteCharacter', projectPath, characterPath),
     deleteLoreItem: (projectPath, lorePath) => safeIpcInvoke('file:deleteLoreItem', projectPath, lorePath),
     deleteNote: (projectPath, notePath) => safeIpcInvoke('file:deleteNote', projectPath, notePath),
+    
+    // Import operations
+    selectImportFiles: () => safeIpcInvoke('import:selectFiles'),
+    selectImportFolder: () => safeIpcInvoke('import:selectFolder'),
+    readDirectory: (folderPath) => safeIpcInvoke('import:readDirectory', folderPath),
+    processImportFiles: (projectPath, filePaths, targetSection) => safeIpcInvoke('import:processFiles', projectPath, filePaths, targetSection),
 
-    // Add new IPC channels for editor functionality
+    // Project-specific operations
     getItemDetails: (projectPath, itemType, itemName) => safeIpcInvoke('get-item-details', projectPath, itemType, itemName),
     saveItemDetails: (projectPath, itemType, itemName, data) => safeIpcInvoke('save-item-details', projectPath, itemType, itemName, data),
 

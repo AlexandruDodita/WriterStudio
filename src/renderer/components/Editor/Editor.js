@@ -70,6 +70,22 @@ class Editor {
     _createToolbar() {
         this.toolbar = new Toolbar(this.contentArea);
         this.toolbarElement = this.toolbar.render();
+        
+        // Add save button to toolbar
+        const saveButton = document.createElement('button');
+        saveButton.className = 'toolbar-btn save-btn';
+        saveButton.title = 'Save (Ctrl+S)';
+        saveButton.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z"/>
+        </svg>`;
+        saveButton.addEventListener('click', () => this._handleSave());
+        
+        // Insert save button at the beginning of the toolbar
+        if (this.toolbarElement.firstChild) {
+            this.toolbarElement.insertBefore(saveButton, this.toolbarElement.firstChild);
+        } else {
+            this.toolbarElement.appendChild(saveButton);
+        }
     }
 
     _createContentArea() {
@@ -128,6 +144,26 @@ class Editor {
             if (this.toolbar) {
                 this.toolbar.updateState();
             }
+            
+            // Reapply character colors on content change
+            if (window.writerStudio?.characterPreview) {
+                // Debounce the color application
+                if (this._colorTimeout) {
+                    clearTimeout(this._colorTimeout);
+                }
+                this._colorTimeout = setTimeout(async () => {
+                    const selection = window.getSelection();
+                    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+                    
+                    await window.writerStudio.characterPreview.applyCharacterColors(this.contentArea);
+                    
+                    // Restore selection
+                    if (range) {
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                }, 500);
+            }
         });
 
         // Selection change for toolbar updates
@@ -143,9 +179,15 @@ class Editor {
             }
         });
 
-        // Keyboard shortcuts
+        // Keyboard shortcuts including save
         this.contentArea.addEventListener('keydown', (e) => {
-            this._handleKeyboardShortcuts(e);
+            // Handle save shortcut
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                this._handleSave();
+            } else {
+                this._handleKeyboardShortcuts(e);
+            }
         });
 
         // Paste handling
@@ -265,6 +307,13 @@ class Editor {
         }
     }
 
+    _handleSave() {
+        if (this.options.onSave && typeof this.options.onSave === 'function') {
+            this.options.onSave(this.getContent());
+            this.isDirty = false;
+        }
+    }
+
     /**
      * Renders the editor into a given parent DOM element
      */
@@ -333,13 +382,36 @@ class Editor {
     }
 
     /**
-     * Load data into the editor (backward compatibility)
+     * Load data into the editor
+     * @param {Object} data - Content data to load
      */
-    loadData({ content = '', description = '', attributes = {} } = {}) {
-        this.setContent(content);
+    loadData(data) {
+        if (!data) {
+            console.warn('[Editor.loadData] No data provided');
+            return;
+        }
+
+        // Load content
+        if (data.content) {
+            this.setContent(data.content);
+        } else {
+            this.setContent('');
+        }
+
+        // Load description if available
+        if (this.descriptionArea && data.description !== undefined) {
+            this.descriptionArea.value = data.description;
+        }
+
+        // Reset dirty flag
+        this.isDirty = false;
         
-        // Store other data for potential use
-        this._metadata = { description, attributes };
+        // Apply character colors if available
+        if (window.writerStudio?.characterPreview) {
+            setTimeout(async () => {
+                await window.writerStudio.characterPreview.applyCharacterColors(this.contentArea);
+            }, 100);
+        }
     }
 
     /**

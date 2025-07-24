@@ -8,6 +8,8 @@ import { UIManager } from './components/Common/UIManager.js';
 import { ThemeManager } from './components/Common/ThemeManager.js';
 import { ModalManager } from './components/Common/ModalManager.js';
 import { ToastManager } from './components/Common/ToastManager.js';
+import { SettingsManager } from './components/Common/SettingsManager.js';
+import { CharacterPreview } from './components/Common/CharacterPreview.js';
 import Editor from './components/Editor/Editor.js';
 import AttributesManager from './components/AttributesManager.js';
 
@@ -103,11 +105,32 @@ class WriterStudioApp {
             console.error('Failed to initialize ToastManager:', error);
         }
         
-        this.editor = new Editor(this.uiManager);
+        try {
+            this.settingsManager = new SettingsManager(this.electronAPI, this.themeManager);
+            console.log('SettingsManager initialized');
+        } catch (error) {
+            console.error('Failed to initialize SettingsManager:', error);
+        }
+        
+        try {
+            this.characterPreview = new CharacterPreview(this.electronAPI, this.settingsManager);
+            console.log('CharacterPreview initialized');
+        } catch (error) {
+            console.error('Failed to initialize CharacterPreview:', error);
+        }
+        
+        this.editor = new Editor(this.uiManager, {
+            onSave: (content) => {
+                if (this.currentEditingItem) {
+                    this.saveEditorData(this.currentEditingItem.type, this.currentEditingItem.name);
+                }
+            }
+        });
         this.attributesManager = new AttributesManager(this.electronAPI, this.toastManager);
         this.currentSection = 'home';
         this.currentProject = null;
         this.currentAttributes = {};
+        this.currentEditingItem = null; // Track what's being edited
         
         // Initialize the app asynchronously
         this.initializeApp().catch(error => {
@@ -116,12 +139,28 @@ class WriterStudioApp {
     }
 
     async initializeApp() {
+        console.log('Initializing application...');
+        
         try {
+            // Setup event listeners first
             this.setupEventListeners();
-            this.themeManager.initialize();
-            this.uiManager.registerComponent('modalManager', this.modalManager);
-            this.uiManager.registerComponent('toastManager', this.toastManager);
-            await this.loadProjectFromURL();
+            
+            // Apply saved theme from settings
+            if (this.settingsManager && this.themeManager) {
+                const savedTheme = this.settingsManager.settings.theme;
+                this.themeManager.setTheme(savedTheme);
+            }
+            
+            // Apply saved theme preference (legacy - can be removed)
+            // this.themeManager.applySavedTheme();
+            
+            // Check for project in URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectPath = urlParams.get('project');
+            
+            if (projectPath) {
+                await this.loadProject(decodeURIComponent(projectPath));
+            }
             
             // Defer the initial UI update slightly to ensure DOM is fully ready
             setTimeout(() => {
@@ -183,6 +222,15 @@ class WriterStudioApp {
         if (settingsBtn) {
             settingsBtn.addEventListener('click', () => this.showSettings());
         }
+        
+        // Import button
+        const importBtn = document.getElementById('import-btn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => this.showImportDialog());
+        }
+
+        // Create new button (generic)
+        const createNewBtn = document.getElementById('create-new-btn');
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -682,11 +730,145 @@ class WriterStudioApp {
     }
 
     showSettings() {
-        this.modalManager.show({
-            title: 'Settings',
-            content: '<p>Settings panel coming soon...</p>',
-            size: 'large'
+        if (this.settingsManager) {
+            this.settingsManager.showSettingsModal(this.modalManager);
+        } else {
+            this.modalManager.show({
+                title: 'Settings',
+                content: '<p>Settings system not initialized</p>',
+                size: 'large'
+            });
+        }
+    }
+
+    async showImportDialog() {
+        if (!this.currentProject || !this.currentProject.path) {
+            this.toastManager.error('Please open a project first');
+            return;
+        }
+
+        const currentSection = AppState.currentSection;
+        if (currentSection === 'editor') {
+            this.toastManager.warning('Cannot import while in editor mode');
+            return;
+        }
+
+        const sectionConfig = SECTIONS[currentSection];
+        
+        const result = await new Promise((resolve) => {
+            const modal = this.modalManager.show({
+                title: `Import to ${sectionConfig.title}`,
+                content: `
+                    <div class="import-options">
+                        <p>Choose import method:</p>
+                        <div class="option-group">
+                            <button class="option-btn" data-choice="files">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                </svg>
+                                <span>Select Files</span>
+                                <small>Choose individual .docx, .odt, .txt files</small>
+                            </button>
+                            <button class="option-btn" data-choice="folder">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+                                    <path d="M10,4H4C2.89,4 2,4.89 2,5V19A2,2 0 0,0 4,21H20A2,2 0 0,0 22,19V7C22,5.89 21.1,5 20,5H12L10,4Z"/>
+                                </svg>
+                                <span>Select Folder</span>
+                                <small>Import all documents from a folder</small>
+                            </button>
+                        </div>
+                    </div>
+                `,
+                size: 'medium',
+                customClass: 'import-dialog',
+                showCancel: true,
+                confirmText: 'Cancel',
+                onConfirm: () => false
+            });
+
+            // Wait a bit for modal to be rendered
+            setTimeout(() => {
+                const modalEl = document.querySelector('.modal.import-dialog');
+                if (modalEl) {
+                    const buttons = modalEl.querySelectorAll('.option-btn');
+                    buttons.forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const choice = btn.dataset.choice;
+                            // Close the modal and resolve with the choice
+                            const modalId = modalEl.id;
+                            if (modalId && this.modalManager.activeModals.has(modalId)) {
+                                this.modalManager.closeModal(modalId, choice);
+                            }
+                            resolve(choice);
+                        });
+                    });
+                }
+            }, 100);
+
+            // Handle modal promise
+            modal.then((result) => {
+                if (!result) resolve(null);
+            }).catch(() => resolve(null));
         });
+
+        if (!result) return;
+        
+        const importChoice = result;
+
+        try {
+            let filePaths = [];
+
+            if (importChoice === 'files') {
+                result = await this.electronAPI.selectImportFiles();
+                if (!result.canceled && result.filePaths) {
+                    filePaths = result.filePaths;
+                }
+            } else if (importChoice === 'folder') {
+                result = await this.electronAPI.selectImportFolder();
+                if (!result.canceled && result.filePaths && result.filePaths[0]) {
+                    // Get all document files from the folder
+                    const folderPath = result.filePaths[0];
+                    filePaths = await this.electronAPI.readDirectory(folderPath);
+                }
+            }
+
+            if (filePaths.length > 0) {
+                this.toastManager.info(`Importing ${filePaths.length} file(s)...`);
+                
+                const importResults = await this.electronAPI.processImportFiles(
+                    this.currentProject.path,
+                    filePaths,
+                    currentSection
+                );
+
+                const successful = importResults.filter(r => r.success).length;
+                const failed = importResults.filter(r => !r.success).length;
+
+                if (successful > 0) {
+                    this.toastManager.success(`Successfully imported ${successful} file(s)`);
+                    // Refresh the current section
+                    await this.loadSectionData(currentSection);
+                    this.updateContentArea();
+                }
+
+                if (failed > 0) {
+                    const errors = importResults
+                        .filter(r => !r.success)
+                        .map(r => `${r.fileName}: ${r.error}`)
+                        .join('\n');
+                    
+                    this.modalManager.show({
+                        title: 'Import Errors',
+                        content: `<p>Failed to import ${failed} file(s):</p><pre>${errors}</pre>`,
+                        confirmText: 'OK',
+                        showCancel: false
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Import error:', error);
+            this.toastManager.error(`Import failed: ${error.message}`);
+        }
     }
 
     showWelcomeMessage() {
@@ -812,6 +994,9 @@ class WriterStudioApp {
         }
         console.log(`Attempting to edit item: ${itemName} of type: ${itemType}`);
         this.toastManager.info(`Loading ${itemName} for editing...`);
+        
+        // Track what's being edited
+        this.currentEditingItem = { type: itemType, name: itemName };
 
         // This call will ensure updateContentArea renders the editor shell into #content-grid
         await this.switchSection('editor'); 
@@ -910,11 +1095,6 @@ class WriterStudioApp {
         }
     }
 
-    /**
-     * Saves the current data from the editor using IPC.
-     * @param {string} itemType - The type of the item being edited.
-     * @param {string} itemName - The name of the item being edited.
-     */
     /**
      * Setup attributes dropdown in the header for editor mode
      */
