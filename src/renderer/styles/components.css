@@ -1,4 +1,5 @@
 /* Component Styles for WriterStudio */
+@import 'components/editor.css';
 
 /* Modal Components */
 .modal {
@@ -949,4 +950,438 @@
 
 .content-header .attributes-dropdown {
     margin-left: auto;
+}
+
+/* Settings Styles */
+.settings-container {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.settings-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.settings-section h3 {
+    margin: 0 0 15px 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.setting-item {
+    margin-bottom: 15px;
+}
+
+.setting-item.sub-setting {
+    margin-left: 20px;
+    padding-left: 20px;
+    border-left: 2px solid var(--border-color);
+}
+
+.setting-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.setting-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 10px 0;
+}
+
+.setting-toggle span {
+    flex: 1;
+}
+
+.setting-toggle strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+.setting-toggle small {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* Toggle Switch */
+.setting-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-slider {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+    background-color: #ccc;
+    border: 1px solid #999;
+    border-radius: 12px;
+    transition: all 0.3s;
+    flex-shrink: 0;
+    margin-left: 10px;
+}
+
+.theme-dark .toggle-slider {
+    background-color: #444;
+    border-color: #666;
+}
+
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.setting-toggle input[type="checkbox"]:checked + .toggle-slider {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.setting-toggle input[type="checkbox"]:checked + .toggle-slider::after {
+    transform: translateX(24px);
+}
+
+/* Theme Toggle */
+.theme-toggle {
+    display: flex;
+    gap: 10px;
+}
+
+.theme-option {
+    flex: 1;
+    padding: 10px 15px;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.theme-option svg {
+    width: 20px;
+    height: 20px;
+}
+
+.theme-option:hover {
+    background: var(--bg-hover);
+}
+
+.theme-option.active {
+    background: var(--accent-light);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+/* Character Colors */
+.character-colors-list {
+    margin-top: 15px;
+}
+
+.color-assignments {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.color-assignment {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+}
+
+.character-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.color-picker {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.character-colors-list .no-characters,
+.character-colors-list .error {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.character-colors-list .error {
+    color: var(--error-color, #ef4444);
+}
+
+/* Info Message */
+.info-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+    background: var(--accent-light);
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.info-message svg {
+    color: var(--accent-color);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.info-message small {
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+/* Color Picker in Attributes */
+.color-picker-input {
+    width: 60px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.attributes-dropdown .add-attribute-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Color Swatch in Attributes */
+.color-swatch {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid var(--border-color);
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+/* Number Input */
+.setting-item input[type="number"] {
+    width: 100px;
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+/* Import Dialog Styles */
+.import-dialog .modal-body {
+    padding: 30px;
+}
+
+.import-options {
+    text-align: center;
+}
+
+.import-options p {
+    margin-bottom: 20px;
+    color: var(--text-secondary);
+}
+
+.option-group {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
+.option-btn {
+    flex: 1;
+    max-width: 200px;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.option-btn:hover {
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.option-btn svg {
+    color: var(--accent-color);
+}
+
+.option-btn span {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.option-btn small {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Save button in toolbar */
+.toolbar-btn.save-btn {
+    background: var(--accent-color);
+    color: white;
+}
+
+.toolbar-btn.save-btn:hover {
+    background: var(--accent-dark);
+}
+
+.toolbar-btn.save-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Character Preview Popup */
+.character-preview-popup {
+    position: fixed;
+    z-index: 10000;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    width: 300px;
+    max-width: 90vw;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+.character-preview-popup .preview-content {
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.character-preview-popup .preview-image {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.character-preview-popup .preview-info {
+    flex: 1;
+}
+
+.character-preview-popup .preview-name {
+    margin: 0 0 8px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.character-preview-popup .preview-description {
+    margin: 0 0 10px 0;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.character-preview-popup .preview-attributes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.character-preview-popup .preview-attr {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.character-preview-popup .preview-attr strong {
+    color: var(--text-primary);
+    text-transform: capitalize;
+}
+
+.character-preview-popup .preview-actions {
+    padding: 10px 15px;
+    pointer-events: auto;
+}
+
+.character-preview-popup .preview-search {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.character-preview-popup .preview-search-results {
+    margin-top: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.character-preview-popup .search-result {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.character-preview-popup .search-result:last-child {
+    border-bottom: none;
+}
+
+.character-preview-popup .no-results {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 10px;
+    font-style: italic;
+}
+
+/* Character name highlighting in editor */
+.character-name-highlight {
+    cursor: help;
+    position: relative;
+    transition: opacity 0.2s;
+}
+
+.character-name-highlight:hover {
+    opacity: 0.8;
 }

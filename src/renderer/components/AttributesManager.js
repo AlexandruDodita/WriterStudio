@@ -26,7 +26,9 @@ class AttributesManager {
                 'Age': ['Child', 'Teenager', 'Young Adult', 'Adult', 'Elder'],
                 'Role': ['Protagonist', 'Antagonist', 'Supporting', 'Minor'],
                 'Personality': ['Brave', 'Shy', 'Aggressive', 'Kind', 'Mysterious'],
-                'Status': ['Alive', 'Dead', 'Missing', 'Unknown']
+                'Status': ['Alive', 'Dead', 'Missing', 'Unknown'],
+                'Character Color': ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'],
+                'Pinned Attributes': ['age', 'gender', 'role', 'occupation']
             },
             notes: {
                 'Category': ['Research', 'Ideas', 'Plot', 'Reminders'],
@@ -59,10 +61,15 @@ class AttributesManager {
             try {
                 const attributePath = `${this.currentProject}/.writerstudio/attributes/${contentType}_attributes.json`;
                 
-                // Check if file exists, if not create it with defaults
-                const exists = await this.electronAPI.invoke('file:exists', attributePath);
-                if (!exists) {
-                    await this.electronAPI.invoke('file:write', attributePath, JSON.stringify(this.defaultTemplates[contentType], null, 2));
+                // For now, we'll just try to read the file and create if it fails
+                try {
+                    await this.electronAPI.readFile(attributePath);
+                } catch (readError) {
+                    // File doesn't exist, create it with defaults
+                    await this.electronAPI.saveFile(
+                        JSON.stringify(this.defaultTemplates[contentType], null, 2),
+                        attributePath
+                    );
                 }
             } catch (error) {
                 console.error(`Error ensuring attribute file for ${contentType}:`, error);
@@ -74,9 +81,16 @@ class AttributesManager {
      * Load attributes for a specific content type
      */
     async loadAttributes(contentType) {
-        if (!this.currentProject) return this.defaultTemplates[contentType] || {};
+        if (!this.electronAPI) {
+            console.warn('electronAPI not available, using default attributes');
+            return this.defaultTemplates[contentType] || {};
+        }
 
-        // Check cache first
+        if (!this.currentProject) {
+            console.warn('No current project set, using default attributes');
+            return this.defaultTemplates[contentType] || {};
+        }
+
         const cacheKey = `${this.currentProject}_${contentType}`;
         if (this.attributeCache.has(cacheKey)) {
             return this.attributeCache.get(cacheKey);
@@ -100,6 +114,11 @@ class AttributesManager {
      * Save attributes for a specific content type
      */
     async saveAttributes(contentType, attributes) {
+        if (!this.electronAPI) {
+            console.warn('electronAPI not available, cannot save attributes');
+            return false;
+        }
+
         if (!this.currentProject) return false;
 
         try {
@@ -220,26 +239,66 @@ class AttributesManager {
             const selectedKey = keySelect.value;
             valueSelect.innerHTML = '<option value="">Select value...</option>';
             
-            if (selectedKey && availableAttributes[selectedKey]) {
-                availableAttributes[selectedKey].forEach(value => {
-                    const option = document.createElement('option');
-                    option.value = value;
-                    option.textContent = value;
-                    valueSelect.appendChild(option);
-                });
+            if (selectedKey === 'Character Color') {
+                // Special handling for color picker
+                valueSelect.style.display = 'none';
+                
+                // Create color picker if it doesn't exist
+                let colorPicker = dropdown.querySelector('.color-picker-input');
+                if (!colorPicker) {
+                    colorPicker = document.createElement('input');
+                    colorPicker.type = 'color';
+                    colorPicker.className = 'color-picker-input';
+                    colorPicker.value = '#FF6B6B';
+                    valueSelect.parentNode.insertBefore(colorPicker, valueSelect.nextSibling);
+                } else {
+                    colorPicker.style.display = 'inline-block';
+                }
+            } else {
+                // Hide color picker if it exists
+                const colorPicker = dropdown.querySelector('.color-picker-input');
+                if (colorPicker) {
+                    colorPicker.style.display = 'none';
+                }
+                
+                valueSelect.style.display = 'inline-block';
+                
+                if (selectedKey && availableAttributes[selectedKey]) {
+                    availableAttributes[selectedKey].forEach(value => {
+                        const option = document.createElement('option');
+                        option.value = value;
+                        option.textContent = value;
+                        valueSelect.appendChild(option);
+                    });
+                }
             }
         });
 
         // Add attribute
         addBtn.addEventListener('click', () => {
             const key = keySelect.value;
-            const value = valueSelect.value;
+            let value = valueSelect.value;
+            
+            // Special handling for color picker
+            if (key === 'Character Color') {
+                const colorPicker = dropdown.querySelector('.color-picker-input');
+                if (colorPicker) {
+                    value = colorPicker.value;
+                }
+            }
             
             if (key && value) {
                 currentAttributes[key] = value;
                 this.refreshCurrentAttributes(dropdown, currentAttributes, onChange);
                 keySelect.value = '';
                 valueSelect.innerHTML = '<option value="">Select value...</option>';
+                
+                // Hide color picker if visible
+                const colorPicker = dropdown.querySelector('.color-picker-input');
+                if (colorPicker) {
+                    colorPicker.style.display = 'none';
+                }
+                valueSelect.style.display = 'inline-block';
                 
                 if (onChange) onChange(currentAttributes);
             }
@@ -304,11 +363,24 @@ class AttributesManager {
         Object.entries(currentAttributes).forEach(([key, value]) => {
             const attributeTag = document.createElement('div');
             attributeTag.className = 'attribute-tag';
-            attributeTag.innerHTML = `
-                <span class="attribute-key">${key}:</span>
-                <span class="attribute-value">${value}</span>
-                <button class="remove-attribute-btn" data-key="${key}" type="button">×</button>
-            `;
+            
+            // Special display for Character Color
+            if (key === 'Character Color') {
+                attributeTag.innerHTML = `
+                    <span class="attribute-key">${key}:</span>
+                    <span class="attribute-value">
+                        <span class="color-swatch" style="background-color: ${value}"></span>
+                        ${value}
+                    </span>
+                    <button class="remove-attribute-btn" data-key="${key}" type="button">×</button>
+                `;
+            } else {
+                attributeTag.innerHTML = `
+                    <span class="attribute-key">${key}:</span>
+                    <span class="attribute-value">${value}</span>
+                    <button class="remove-attribute-btn" data-key="${key}" type="button">×</button>
+                `;
+            }
 
             // Remove attribute handler
             attributeTag.querySelector('.remove-attribute-btn').addEventListener('click', () => {

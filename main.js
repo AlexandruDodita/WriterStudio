@@ -563,6 +563,17 @@ ipcMain.handle('file:getCharacters', async (event, projectPath) => {
                         }
                     }
                     
+                    // Read attributes if they exist
+                    let attributes = {};
+                    const attributesPath = path.join(characterDir, 'attributes.json');
+                    if (fs.existsSync(attributesPath)) {
+                        try {
+                            attributes = readJsonFile(attributesPath) || {};
+                        } catch (error) {
+                            log('warn', `Failed to read attributes file: ${attributesPath}`);
+                        }
+                    }
+                    
                     characters.push({
                         name: metadata.name || dirName,
                         description: description,
@@ -570,7 +581,8 @@ ipcMain.handle('file:getCharacters', async (event, projectPath) => {
                         created: metadata.created,
                         path: characterDir,
                         metadataPath: metadataPath,
-                        type: 'character'
+                        type: 'character',
+                        attributes: attributes
                     });
                 }
             }
@@ -1179,25 +1191,137 @@ ipcMain.handle('file:deleteLoreItem', async (event, projectPath, lorePath) => {
 
 // Delete a note
 ipcMain.handle('file:deleteNote', async (event, projectPath, notePath) => {
-    log('info', `IPC: file:deleteNote called for path: ${notePath}`);
+    log('info', `IPC: file:deleteNote called for note: ${notePath}`);
     
     try {
-        if (!fs.existsSync(notePath)) {
-            throw new Error(`Note directory does not exist: ${notePath}`);
+        if (fs.existsSync(notePath)) {
+            fs.rmSync(notePath, { recursive: true, force: true });
+            log('info', `Note deleted: ${notePath}`);
+            return { success: true };
+        } else {
+            log('warning', `Note not found: ${notePath}`);
+            return { success: false, error: 'Note not found' };
         }
-        
-        // Validate that this is actually a note directory
-        if (!notePath.includes('Notes')) {
-            throw new Error('Invalid note path');
-        }
-        
-        // Remove the entire note directory and its contents
-        fs.rmSync(notePath, { recursive: true, force: true });
-        log('info', `Successfully deleted note directory: ${notePath}`);
-        
-        return { success: true, message: 'Note deleted successfully' };
     } catch (error) {
         return handleError('deleting note', error);
+    }
+});
+
+// Import documents functionality
+ipcMain.handle('import:selectFiles', async () => {
+    log('info', 'IPC: import:selectFiles called');
+    try {
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ['openFile', 'multiSelections'],
+            filters: [
+                { name: 'Documents', extensions: ['docx', 'odt', 'txt', 'md'] },
+                { name: 'All Files', extensions: ['*'] }
+            ]
+        });
+        log('info', 'File selection result:', result);
+        return result;
+    } catch (error) {
+        return handleError('file selection for import', error);
+    }
+});
+
+ipcMain.handle('import:selectFolder', async () => {
+    log('info', 'IPC: import:selectFolder called');
+    try {
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ['openDirectory']
+        });
+        log('info', 'Folder selection result:', result);
+        return result;
+    } catch (error) {
+        return handleError('folder selection for import', error);
+    }
+});
+
+ipcMain.handle('import:readDirectory', async (event, folderPath) => {
+    log('info', `IPC: import:readDirectory called for: ${folderPath}`);
+    try {
+        const files = fs.readdirSync(folderPath);
+        const documentFiles = files.filter(file => /\.(docx|odt|txt|md)$/i.test(file));
+        return documentFiles.map(file => path.join(folderPath, file));
+    } catch (error) {
+        return handleError('reading directory for import', error);
+    }
+});
+
+ipcMain.handle('import:processFiles', async (event, projectPath, filePaths, targetSection) => {
+    log('info', `IPC: import:processFiles called for ${filePaths.length} files to ${targetSection}`);
+    
+    try {
+        const targetDir = path.join(projectPath, ITEM_TYPE_TO_DIRECTORY_MAP[targetSection] || targetSection);
+        ensureDirectoryExists(targetDir);
+        
+        const results = [];
+        
+        for (const filePath of filePaths) {
+            try {
+                const fileName = path.basename(filePath, path.extname(filePath));
+                const ext = path.extname(filePath).toLowerCase();
+                
+                // Create item based on target section
+                let createResult;
+                const sanitizedName = fileName.replace(/[^a-z0-9_-]/gi, '_');
+                
+                switch (targetSection) {
+                    case 'chapters':
+                        createResult = await ipcMain.handle('file:createChapter', event, projectPath, fileName);
+                        break;
+                    case 'characters':
+                        createResult = await ipcMain.handle('file:createCharacter', event, projectPath, fileName);
+                        break;
+                    case 'lore':
+                        createResult = await ipcMain.handle('file:createLoreItem', event, projectPath, fileName);
+                        break;
+                    case 'notes':
+                        createResult = await ipcMain.handle('file:createNote', event, projectPath, fileName);
+                        break;
+                }
+                
+                if (createResult && !createResult.error) {
+                    // Read and convert file content
+                    let content = '';
+                    
+                    if (ext === '.txt' || ext === '.md') {
+                        content = fs.readFileSync(filePath, 'utf8');
+                    } else if (ext === '.docx' || ext === '.odt') {
+                        // For now, just copy the file - in a real implementation, 
+                        // you'd use a library to extract text content
+                        content = `[Imported from ${path.basename(filePath)}]\n\nContent conversion pending...`;
+                    }
+                    
+                    // Save content to the new item
+                    const contentPath = path.join(createResult.path, 'content.md');
+                    fs.writeFileSync(contentPath, content);
+                    
+                    results.push({
+                        success: true,
+                        fileName: fileName,
+                        itemPath: createResult.path
+                    });
+                } else {
+                    results.push({
+                        success: false,
+                        fileName: fileName,
+                        error: createResult?.error || 'Failed to create item'
+                    });
+                }
+            } catch (fileError) {
+                results.push({
+                    success: false,
+                    fileName: path.basename(filePath),
+                    error: fileError.message
+                });
+            }
+        }
+        
+        return results;
+    } catch (error) {
+        return handleError('processing import files', error);
     }
 });
 

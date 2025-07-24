@@ -95,6 +95,28 @@ header {
     overflow: hidden;
 }
 
+.editor-area .editor-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Ensure proper integration with content-grid */
+.content-grid.editor-mode {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 !important;
+    height: 100% !important;
+}
+
+.content-grid.editor-mode .modern-rich-editor {
+    flex: 1;
+    min-height: 0;
+    margin: var(--space-lg);
+    height: calc(100% - 2 * var(--space-lg));
+}
+
 /* File list */
 .file-list {
     border-bottom: 1px solid var(--border-color);
