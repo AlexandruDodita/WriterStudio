@@ -690,7 +690,16 @@ class WriterStudioApp {
                     
                     // Refresh current section
                     await this.loadSectionData(AppState.currentSection);
-                    this.updateContentArea();
+                    
+                    // Update the content area with the new data
+                    if (AppState.sectionData[AppState.currentSection]) {
+                        this.updateContentArea(
+                            AppState.sectionData[AppState.currentSection].items, 
+                            AppState.currentSection
+                        );
+                    } else {
+                        this.updateContentArea([], AppState.currentSection);
+                    }
                 } catch (error) {
                     console.error('Error creating new item:', error);
                     if (this.toastManager) {

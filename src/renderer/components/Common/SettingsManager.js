@@ -63,7 +63,10 @@ export class SettingsManager {
             content: this.renderSettingsContent(),
             confirmText: 'Save',
             cancelText: 'Cancel',
-            onConfirm: () => this.saveSettingsFromModal()
+            onConfirm: () => {
+                this.saveSettings();
+                return true;
+            }
         });
 
         // Setup event listeners after modal is shown
@@ -125,8 +128,12 @@ export class SettingsManager {
                             <span class="toggle-slider"></span>
                         </label>
                         
-                        <div class="character-colors-list" id="character-colors-list">
-                            <!-- Character color assignments will be loaded here -->
+                        <div class="info-message">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                <path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/>
+                            </svg>
+                            <small>Character colors are now managed in each character's attributes. 
+                            Open a character and look for "Character Color" in the attributes panel.</small>
                         </div>
                     </div>
 
@@ -197,9 +204,6 @@ export class SettingsManager {
                 if (options) {
                     options.style.display = e.target.checked ? '' : 'none';
                 }
-                if (e.target.checked) {
-                    this.loadCharacterColors();
-                }
             });
         }
 
@@ -242,11 +246,6 @@ export class SettingsManager {
             hoverDelayInput.addEventListener('change', (e) => {
                 this.settings.characterHoverPreview.previewDelay = parseInt(e.target.value, 10);
             });
-        }
-
-        // Load character colors if enabled
-        if (this.settings.characterColorGrading.enabled) {
-            this.loadCharacterColors();
         }
     }
 

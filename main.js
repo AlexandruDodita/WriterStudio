@@ -563,6 +563,17 @@ ipcMain.handle('file:getCharacters', async (event, projectPath) => {
                         }
                     }
                     
+                    // Read attributes if they exist
+                    let attributes = {};
+                    const attributesPath = path.join(characterDir, 'attributes.json');
+                    if (fs.existsSync(attributesPath)) {
+                        try {
+                            attributes = readJsonFile(attributesPath) || {};
+                        } catch (error) {
+                            log('warn', `Failed to read attributes file: ${attributesPath}`);
+                        }
+                    }
+                    
                     characters.push({
                         name: metadata.name || dirName,
                         description: description,
@@ -570,7 +581,8 @@ ipcMain.handle('file:getCharacters', async (event, projectPath) => {
                         created: metadata.created,
                         path: characterDir,
                         metadataPath: metadataPath,
-                        type: 'character'
+                        type: 'character',
+                        attributes: attributes
                     });
                 }
             }

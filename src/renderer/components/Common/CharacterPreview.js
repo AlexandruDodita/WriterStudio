@@ -105,11 +105,24 @@ export class CharacterPreview {
             // Add quick stats if available
             if (characterData.attributes) {
                 content += '<div class="preview-attributes">';
-                const quickAttrs = ['age', 'role', 'gender'];
                 
-                quickAttrs.forEach(attr => {
-                    if (characterData.attributes[attr]) {
-                        content += `<span class="preview-attr"><strong>${attr}:</strong> ${characterData.attributes[attr]}</span>`;
+                // Check for pinned attributes
+                const pinnedAttrs = characterData.attributes['Pinned Attributes'];
+                let attrsToShow = ['age', 'role', 'gender']; // defaults
+                
+                if (pinnedAttrs) {
+                    // Parse pinned attributes if it's a string
+                    if (typeof pinnedAttrs === 'string') {
+                        attrsToShow = pinnedAttrs.split(',').map(a => a.trim());
+                    } else if (Array.isArray(pinnedAttrs)) {
+                        attrsToShow = pinnedAttrs;
+                    }
+                }
+                
+                attrsToShow.forEach(attr => {
+                    if (characterData.attributes[attr] || characterData.attributes[attr.charAt(0).toUpperCase() + attr.slice(1)]) {
+                        const value = characterData.attributes[attr] || characterData.attributes[attr.charAt(0).toUpperCase() + attr.slice(1)];
+                        content += `<span class="preview-attr"><strong>${attr}:</strong> ${value}</span>`;
                     }
                 });
                 
@@ -334,8 +347,16 @@ export class CharacterPreview {
         
         characters.forEach(character => {
             const characterName = character.name || character;
-            const color = this.settingsManager.getCharacterColor(characterName) ||
-                        this.settingsManager.autoAssignColor(characterName);
+            
+            // First check for color in character's attributes
+            let color = null;
+            if (character.attributes && character.attributes['Character Color']) {
+                color = character.attributes['Character Color'];
+            } else {
+                // Fall back to settings manager color
+                color = this.settingsManager.getCharacterColor(characterName) ||
+                       this.settingsManager.autoAssignColor(characterName);
+            }
             
             if (color) {
                 // Find and highlight character names in the editor
