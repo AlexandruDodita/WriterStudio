@@ -70,6 +70,58 @@ class Editor {
     _createToolbar() {
         this.toolbar = new Toolbar(this.contentArea);
         this.toolbarElement = this.toolbar.render();
+        
+        // Add save button to toolbar
+        this._addSaveButton();
+    }
+
+    _addSaveButton() {
+        if (!this.toolbarElement) return;
+        
+        const createEl = (tag, opts, children) => this.uiManager.createElement(tag, opts, children);
+        
+        // Create save section in toolbar
+        const saveSection = createEl('div', { className: 'toolbar-section save-section' });
+        
+        // Save button
+        this.saveButton = createEl('button', {
+            className: 'toolbar-btn save-btn',
+            title: 'Save (Ctrl+S)',
+            type: 'button'
+        });
+        
+        this.saveButton.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z"/>
+            </svg>
+        `;
+        
+        this.saveButton.addEventListener('click', () => {
+            this._save();
+        });
+        
+        // Save As button  
+        this.saveAsButton = createEl('button', {
+            className: 'toolbar-btn save-as-btn',
+            title: 'Save As...',
+            type: 'button'
+        });
+        
+        this.saveAsButton.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H11V19H5V5H15V9H19V11H21V7L17,3M21,15H19V17H21V19H19V21H17V19H15V17H17V15H19V13H21V15Z"/>
+            </svg>
+        `;
+        
+        this.saveAsButton.addEventListener('click', () => {
+            this._saveAs();
+        });
+        
+        saveSection.appendChild(this.saveButton);
+        saveSection.appendChild(this.saveAsButton);
+        
+        // Insert save section at the beginning of toolbar
+        this.toolbarElement.insertBefore(saveSection, this.toolbarElement.firstChild);
     }
 
     _createContentArea() {
@@ -258,11 +310,69 @@ class Editor {
     }
 
     _save() {
-        // Override this method or provide a save callback
         console.log('Save triggered');
+        
+        // Mark as clean when saved
+        this.markClean();
+        
+        // Update status bar to show saved status
+        this._showSaveStatus('Saved successfully');
+        
         if (this.options.onSave) {
-            this.options.onSave(this.getContent());
+            this.options.onSave(this.getContent(), this.getText());
         }
+        
+        // Fire save event for external listeners
+        const saveEvent = new CustomEvent('editorSave', {
+            detail: {
+                content: this.getContent(),
+                text: this.getText(),
+                timestamp: new Date().toISOString()
+            }
+        });
+        this.editorElement.dispatchEvent(saveEvent);
+    }
+
+    _saveAs() {
+        console.log('Save As triggered');
+        
+        if (this.options.onSaveAs) {
+            this.options.onSaveAs(this.getContent(), this.getText());
+        }
+        
+        // Fire save as event for external listeners
+        const saveAsEvent = new CustomEvent('editorSaveAs', {
+            detail: {
+                content: this.getContent(),
+                text: this.getText(),
+                timestamp: new Date().toISOString()
+            }
+        });
+        this.editorElement.dispatchEvent(saveAsEvent);
+    }
+
+    _showSaveStatus(message) {
+        if (!this.statusBar) return;
+        
+        // Find or create save status element
+        let saveStatus = this.statusBar.querySelector('.save-status');
+        if (!saveStatus) {
+            saveStatus = this.uiManager.createElement('span', {
+                className: 'save-status'
+            });
+            this.statusBar.appendChild(saveStatus);
+        }
+        
+        saveStatus.textContent = message;
+        saveStatus.className = 'save-status success';
+        
+        // Clear the message after 3 seconds
+        setTimeout(() => {
+            if (saveStatus) {
+                saveStatus.textContent = '';
+                saveStatus.className = 'save-status';
+            }
+        }, 3000);
     }
 
     /**

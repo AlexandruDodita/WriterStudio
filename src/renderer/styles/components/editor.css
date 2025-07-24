@@ -98,6 +98,34 @@
     font-size: var(--font-size-sm);
     cursor: pointer;
     min-width: 120px;
+}
+
+/* Save Button Styles */
+.save-section {
+    margin-right: var(--space-sm);
+}
+
+.save-btn {
+    background-color: var(--accent-success) !important;
+    color: var(--text-inverse) !important;
+    border-color: var(--accent-success) !important;
+}
+
+.save-btn:hover {
+    background-color: #059669 !important;
+    border-color: #059669 !important;
+}
+
+.save-as-btn {
+    background-color: var(--accent-primary) !important;
+    color: var(--text-inverse) !important;
+    border-color: var(--accent-primary) !important;
+}
+
+.save-as-btn:hover {
+    background-color: var(--accent-primary-hover) !important;
+    border-color: var(--accent-primary-hover) !important;
+}
     transition: all var(--transition-fast);
 }
 
@@ -307,6 +335,19 @@
 .char-count {
     font-weight: 500;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.save-status {
+    font-weight: 500;
+    font-size: var(--font-size-xs);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.save-status.success {
+    background-color: var(--accent-success);
+    color: var(--text-inverse);
 }
 
 /* Selection styling */

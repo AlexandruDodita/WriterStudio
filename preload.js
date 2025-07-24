@@ -25,9 +25,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     validateProject: (projectPath) => safeIpcInvoke('project:validate', projectPath),
     getRecentProjects: () => safeIpcInvoke('project:getRecent'),
     getDefaultProjectsPath: () => safeIpcInvoke('project:getDefaultPath'),
+    importFolder: (projectPath, importPath, targetSection) => safeIpcInvoke('project:importFolder', projectPath, importPath, targetSection),
     
     // File system operations - dialogs
     selectDirectory: () => safeIpcInvoke('dialog:selectDirectory'),
+    selectImportFolder: () => safeIpcInvoke('dialog:selectImportFolder'),
     
     // File operations - Book Chapters
     getChapters: (projectPath) => safeIpcInvoke('file:getChapters', projectPath),

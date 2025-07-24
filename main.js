@@ -1308,3 +1308,129 @@ ipcMain.handle('save-item-details', async (event, projectPath, itemType, itemNam
         throw error; // Rethrow to be caught by the renderer
     }
 });
+
+// Import folder functionality
+ipcMain.handle('dialog:selectImportFolder', async () => {
+    log('info', 'IPC: dialog:selectImportFolder called');
+    try {
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ['openDirectory'],
+            title: 'Select folder to import',
+            buttonLabel: 'Import Folder'
+        });
+        log('info', 'Import folder selection result:', result);
+        return result;
+    } catch (error) {
+        return handleError('import folder selection', error);
+    }
+});
+
+// Import folder contents to project
+ipcMain.handle('project:importFolder', async (event, projectPath, importPath, targetSection) => {
+    log('info', `IPC: project:importFolder called for ${importPath} to ${targetSection} in ${projectPath}`);
+    
+    try {
+        if (!fs.existsSync(importPath)) {
+            throw new Error('Import folder does not exist');
+        }
+        
+        if (!fs.existsSync(projectPath)) {
+            throw new Error('Project path does not exist');
+        }
+        
+        // Get target directory based on section
+        const targetDirMap = {
+            'chapters': 'Book Chapters',
+            'characters': 'Characters', 
+            'lore': 'World Lore',
+            'notes': 'Notes'
+        };
+        
+        const targetDirName = targetDirMap[targetSection];
+        if (!targetDirName) {
+            throw new Error(`Invalid target section: ${targetSection}`);
+        }
+        
+        const targetDir = path.join(projectPath, targetDirName);
+        ensureDirectoryExists(targetDir);
+        
+        // Scan import folder for supported files
+        const supportedExtensions = ['.docx', '.odt', '.txt', '.md'];
+        const files = fs.readdirSync(importPath, { withFileTypes: true });
+        const importedFiles = [];
+        
+        for (const file of files) {
+            if (file.isFile()) {
+                const ext = path.extname(file.name).toLowerCase();
+                if (supportedExtensions.includes(ext)) {
+                    const filePath = path.join(importPath, file.name);
+                    const baseName = path.basename(file.name, ext);
+                    
+                    try {
+                        // Create item directory
+                        const itemFolderName = baseName.replace(/[^a-z0-9_-]/gi, '_');
+                        const itemDir = path.join(targetDir, itemFolderName);
+                        
+                        // Check if already exists, create unique name if needed
+                        let counter = 1;
+                        let finalItemDir = itemDir;
+                        while (fs.existsSync(finalItemDir)) {
+                            finalItemDir = `${itemDir}_${counter}`;
+                            counter++;
+                        }
+                        
+                        ensureDirectoryExists(finalItemDir);
+                        ensureDirectoryExists(path.join(finalItemDir, 'images'));
+                        
+                        // Copy and convert file content
+                        let content = '';
+                        if (ext === '.txt' || ext === '.md') {
+                            content = fs.readFileSync(filePath, 'utf8');
+                        } else if (ext === '.docx' || ext === '.odt') {
+                            // For now, just copy the file and note that conversion is needed
+                            const destFile = path.join(finalItemDir, file.name);
+                            fs.copyFileSync(filePath, destFile);
+                            content = `[Imported ${ext.toUpperCase()} file: ${file.name}]\n\nTo view content, please open the original file in ${finalItemDir}`;
+                        }
+                        
+                        // Create metadata
+                        const metadata = {
+                            name: baseName,
+                            created: new Date().toISOString(),
+                            lastModified: new Date().toISOString(),
+                            importedFrom: filePath,
+                            originalFormat: ext
+                        };
+                        
+                        writeJsonFile(path.join(finalItemDir, 'metadata.json'), metadata);
+                        writeTextFile(path.join(finalItemDir, 'content.md'), content);
+                        writeTextFile(path.join(finalItemDir, 'description.txt'), '');
+                        writeJsonFile(path.join(finalItemDir, 'attributes.json'), {});
+                        
+                        importedFiles.push({
+                            name: baseName,
+                            originalFile: file.name,
+                            format: ext,
+                            itemPath: finalItemDir
+                        });
+                        
+                        log('info', `Imported ${file.name} as ${baseName} to ${finalItemDir}`);
+                    } catch (error) {
+                        log('error', `Failed to import ${file.name}:`, error);
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        log('info', `Import completed: ${importedFiles.length} files imported`);
+        return {
+            success: true,
+            message: `Successfully imported ${importedFiles.length} files`,
+            importedFiles
+        };
+        
+    } catch (error) {
+        return handleError('importing folder', error);
+    }
+});

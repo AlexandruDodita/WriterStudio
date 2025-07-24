@@ -103,7 +103,10 @@ class WriterStudioApp {
             console.error('Failed to initialize ToastManager:', error);
         }
         
-        this.editor = new Editor(this.uiManager);
+        this.editor = new Editor(this.uiManager, {
+            onSave: (content, text) => this._handleEditorSave(content, text),
+            onSaveAs: (content, text) => this._handleEditorSaveAs(content, text)
+        });
         this.attributesManager = new AttributesManager(this.electronAPI, this.toastManager);
         this.currentSection = 'home';
         this.currentProject = null;
@@ -121,6 +124,11 @@ class WriterStudioApp {
             this.themeManager.initialize();
             this.uiManager.registerComponent('modalManager', this.modalManager);
             this.uiManager.registerComponent('toastManager', this.toastManager);
+            
+            // Load and apply settings
+            const settings = this._loadSettings();
+            this._applySettings(settings);
+            
             await this.loadProjectFromURL();
             
             // Defer the initial UI update slightly to ensure DOM is fully ready
@@ -677,16 +685,633 @@ class WriterStudioApp {
         }
     }
 
-    handleImport() {
-        this.toastManager.show('Import functionality coming soon', 'info');
+    async handleImport() {
+        try {
+            if (!AppState.currentProject) {
+                this.toastManager.error('Please open a project before importing files');
+                return;
+            }
+
+            // First select the folder
+            const folderResult = await this.electronAPI.selectImportFolder();
+            if (folderResult.canceled || !folderResult.filePaths.length) {
+                return; // User cancelled folder selection
+            }
+            
+            const importPath = folderResult.filePaths[0];
+            
+            // Show section selection dialog
+            const confirmed = await this.modalManager.show({
+                title: 'Import Files',
+                content: `
+                    <div class="import-dialog">
+                        <p><strong>Selected folder:</strong> ${importPath}</p>
+                        <p>Supported formats: .txt, .md, .docx, .odt</p>
+                        
+                        <div class="form-group">
+                            <label for="target-section">Import to section:</label>
+                            <select id="target-section" class="form-control">
+                                <option value="chapters">Book Chapters</option>
+                                <option value="characters">Characters</option>
+                                <option value="lore">World Lore</option>
+                                <option value="notes">Notes</option>
+                            </select>
+                        </div>
+                    </div>
+                `,
+                confirmText: 'Import',
+                cancelText: 'Cancel',
+                size: 'medium'
+            });
+
+            if (!confirmed) {
+                return; // User cancelled
+            }
+
+            // Get the selected section value
+            const sectionSelect = document.querySelector('#target-section');
+            const selectedSection = sectionSelect ? sectionSelect.value : 'chapters';
+
+            // Perform import
+            this.toastManager.info('Importing files...');
+            const result = await this.electronAPI.importFolder(
+                AppState.currentProject,
+                importPath,
+                selectedSection
+            );
+
+            if (result.success) {
+                this.toastManager.success(result.message);
+                
+                // Refresh the current section if it matches the import target
+                if (AppState.currentSection === selectedSection) {
+                    await this.loadSectionData(AppState.currentSection);
+                    this.updateContentArea();
+                }
+            } else {
+                this.toastManager.error('Import failed: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error during import:', error);
+            this.toastManager.error('Import failed: ' + error.message);
+        }
     }
 
-    showSettings() {
-        this.modalManager.show({
+    async showSettings() {
+        const confirmed = await this.modalManager.show({
             title: 'Settings',
-            content: '<p>Settings panel coming soon...</p>',
-            size: 'large'
+            content: this._createSettingsContent(),
+            size: 'large',
+            confirmText: 'Save Settings',
+            cancelText: 'Cancel'
         });
+
+        if (confirmed) {
+            this._saveSettings();
+        }
+    }
+
+    _createSettingsContent() {
+        const currentTheme = this.themeManager.getThemePreference();
+        const settings = this._loadSettings();
+        
+        return `
+            <div class="settings-panel">
+                <!-- Theme Settings -->
+                <div class="settings-section">
+                    <h3>Appearance</h3>
+                    
+                    <div class="form-group">
+                        <label for="theme-select">Theme</label>
+                        <select id="theme-select" class="form-control">
+                            <option value="light" ${currentTheme === 'light' ? 'selected' : ''}>Light</option>
+                            <option value="dark" ${currentTheme === 'dark' ? 'selected' : ''}>Dark</option>
+                            <option value="auto" ${currentTheme === 'auto' ? 'selected' : ''}>Auto (System)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Character Settings -->
+                <div class="settings-section">
+                    <h3>Character Display</h3>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="character-colors-enabled" ${settings.characterColors?.enabled ? 'checked' : ''}>
+                            <span class="checkmark"></span>
+                            Enable character name color-coding
+                        </label>
+                        <p class="help-text">When enabled, character names will be displayed with assigned colors throughout the application.</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="character-hover-enabled" ${settings.characterHover?.enabled ? 'checked' : ''}>
+                            <span class="checkmark"></span>
+                            Show character details on hover
+                        </label>
+                        <p class="help-text">When enabled, hovering over character names will show a popup with character image and details.</p>
+                    </div>
+                    
+                    <div class="character-color-preview" id="character-color-preview">
+                        <h4>Character Color Assignments</h4>
+                        <div class="color-assignments" id="color-assignments">
+                            <!-- Character color assignments will be populated here -->
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="manage-character-colors">
+                            Manage Character Colors
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Editor Settings -->
+                <div class="settings-section">
+                    <h3>Editor</h3>
+                    
+                    <div class="form-group">
+                        <label for="auto-save-interval">Auto-save interval (minutes)</label>
+                        <select id="auto-save-interval" class="form-control">
+                            <option value="0" ${(settings.editor?.autoSaveInterval || 0) === 0 ? 'selected' : ''}>Disabled</option>
+                            <option value="1" ${(settings.editor?.autoSaveInterval || 0) === 1 ? 'selected' : ''}>1 minute</option>
+                            <option value="5" ${(settings.editor?.autoSaveInterval || 0) === 5 ? 'selected' : ''}>5 minutes</option>
+                            <option value="10" ${(settings.editor?.autoSaveInterval || 0) === 10 ? 'selected' : ''}>10 minutes</option>
+                            <option value="15" ${(settings.editor?.autoSaveInterval || 0) === 15 ? 'selected' : ''}>15 minutes</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="word-wrap-enabled" ${settings.editor?.wordWrap !== false ? 'checked' : ''}>
+                            <span class="checkmark"></span>
+                            Enable word wrap
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Project Settings -->
+                <div class="settings-section">
+                    <h3>Project Management</h3>
+                    
+                    <div class="form-group">
+                        <label for="default-project-location">Default project location</label>
+                        <div class="input-group">
+                            <input type="text" id="default-project-location" class="form-control" 
+                                   value="${settings.project?.defaultLocation || ''}" readonly>
+                            <button type="button" class="btn btn-secondary" id="select-project-location">
+                                Browse...
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="backup-enabled" ${settings.project?.backupEnabled ? 'checked' : ''}>
+                            <span class="checkmark"></span>
+                            Enable automatic backups
+                        </label>
+                        <p class="help-text">Create automatic backups of your project files.</p>
+                    </div>
+                </div>
+
+                <!-- Advanced Settings -->
+                <div class="settings-section">
+                    <h3>Advanced</h3>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="debug-mode" ${settings.advanced?.debugMode ? 'checked' : ''}>
+                            <span class="checkmark"></span>
+                            Enable debug mode
+                        </label>
+                        <p class="help-text">Show additional debugging information in the console.</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="button" class="btn btn-danger" id="reset-settings">
+                            Reset All Settings
+                        </button>
+                        <p class="help-text">Reset all settings to their default values.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    _loadSettings() {
+        try {
+            const settingsJson = localStorage.getItem('writerStudio_settings');
+            return settingsJson ? JSON.parse(settingsJson) : this._getDefaultSettings();
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            return this._getDefaultSettings();
+        }
+    }
+
+    _getDefaultSettings() {
+        return {
+            characterColors: {
+                enabled: true,
+                assignments: {},
+                autoAssign: true
+            },
+            characterHover: {
+                enabled: true,
+                showImage: true,
+                showDescription: true
+            },
+            editor: {
+                autoSaveInterval: 5,
+                wordWrap: true,
+                fontSize: 14
+            },
+            project: {
+                defaultLocation: '',
+                backupEnabled: false,
+                maxBackups: 5
+            },
+            advanced: {
+                debugMode: false
+            }
+        };
+    }
+
+    _saveSettings() {
+        try {
+            const settings = this._loadSettings();
+            
+            // Update theme
+            const themeSelect = document.querySelector('#theme-select');
+            if (themeSelect) {
+                this.themeManager.setTheme(themeSelect.value);
+            }
+            
+            // Update character settings
+            const characterColorsEnabled = document.querySelector('#character-colors-enabled');
+            const characterHoverEnabled = document.querySelector('#character-hover-enabled');
+            
+            if (characterColorsEnabled) {
+                settings.characterColors.enabled = characterColorsEnabled.checked;
+            }
+            
+            if (characterHoverEnabled) {
+                settings.characterHover.enabled = characterHoverEnabled.checked;
+            }
+            
+            // Update editor settings
+            const autoSaveInterval = document.querySelector('#auto-save-interval');
+            const wordWrapEnabled = document.querySelector('#word-wrap-enabled');
+            
+            if (autoSaveInterval) {
+                settings.editor.autoSaveInterval = parseInt(autoSaveInterval.value);
+            }
+            
+            if (wordWrapEnabled) {
+                settings.editor.wordWrap = wordWrapEnabled.checked;
+            }
+            
+            // Update project settings
+            const defaultLocation = document.querySelector('#default-project-location');
+            const backupEnabled = document.querySelector('#backup-enabled');
+            
+            if (defaultLocation) {
+                settings.project.defaultLocation = defaultLocation.value;
+            }
+            
+            if (backupEnabled) {
+                settings.project.backupEnabled = backupEnabled.checked;
+            }
+            
+            // Update advanced settings
+            const debugMode = document.querySelector('#debug-mode');
+            if (debugMode) {
+                settings.advanced.debugMode = debugMode.checked;
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('writerStudio_settings', JSON.stringify(settings, null, 2));
+            
+            this.toastManager.success('Settings saved successfully');
+            
+            // Apply settings
+            this._applySettings(settings);
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            this.toastManager.error('Failed to save settings');
+        }
+    }
+
+    _applySettings(settings) {
+        // Apply character color settings
+        if (settings.characterColors?.enabled) {
+            this._enableCharacterColors();
+        } else {
+            this._disableCharacterColors();
+        }
+        
+        // Apply character hover settings
+        if (settings.characterHover?.enabled) {
+            this._enableCharacterHover();
+        } else {
+            this._disableCharacterHover();
+        }
+        
+        // Apply editor settings
+        if (this.editor && settings.editor) {
+            if (settings.editor.wordWrap !== undefined) {
+                this._setEditorWordWrap(settings.editor.wordWrap);
+            }
+        }
+    }
+
+    _enableCharacterColors() {
+        document.body.classList.add('character-colors-enabled');
+        // Implementation for character color functionality
+    }
+
+    _disableCharacterColors() {
+        document.body.classList.remove('character-colors-enabled');
+    }
+
+    _enableCharacterHover() {
+        document.body.classList.add('character-hover-enabled');
+        this._setupCharacterHover();
+    }
+
+    _disableCharacterHover() {
+        document.body.classList.remove('character-hover-enabled');
+        this._teardownCharacterHover();
+    }
+
+    _setupCharacterHover() {
+        // Add event listeners for character name hover functionality
+        document.addEventListener('mouseover', this._handleCharacterHover.bind(this));
+        document.addEventListener('mouseout', this._handleCharacterHoverOut.bind(this));
+    }
+
+    _teardownCharacterHover() {
+        document.removeEventListener('mouseover', this._handleCharacterHover.bind(this));
+        document.removeEventListener('mouseout', this._handleCharacterHoverOut.bind(this));
+    }
+
+    _handleCharacterHover(event) {
+        const characterElement = event.target.closest('[data-character]');
+        if (characterElement) {
+            this._showCharacterPopup(characterElement);
+        }
+    }
+
+    _handleCharacterHoverOut(event) {
+        const popup = document.querySelector('.character-popup');
+        if (popup && !popup.contains(event.relatedTarget)) {
+            popup.remove();
+        }
+    }
+
+    _showCharacterPopup(characterElement) {
+        const characterName = characterElement.dataset.character;
+        
+        // Remove existing popup
+        const existingPopup = document.querySelector('.character-popup');
+        if (existingPopup) {
+            existingPopup.remove();
+        }
+        
+        // Create popup
+        const popup = document.createElement('div');
+        popup.className = 'character-popup';
+        popup.innerHTML = `
+            <div class="character-popup-content">
+                <h4>${characterName}</h4>
+                <div class="character-image">
+                    <img src="/path/to/character/image.jpg" alt="${characterName}" 
+                         onerror="this.style.display='none'">
+                </div>
+                <div class="character-description">
+                    <p>Character description will be loaded here...</p>
+                </div>
+            </div>
+        `;
+        
+        // Position popup
+        const rect = characterElement.getBoundingClientRect();
+        popup.style.position = 'absolute';
+        popup.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+        popup.style.left = (rect.left + window.scrollX) + 'px';
+        popup.style.zIndex = '10000';
+        
+        document.body.appendChild(popup);
+        
+        // Load character data
+        this._loadCharacterPopupData(characterName, popup);
+    }
+
+    async _loadCharacterPopupData(characterName, popup) {
+        try {
+            if (!AppState.currentProject) return;
+            
+            const characterData = await this.electronAPI.getItemDetails(
+                AppState.currentProject,
+                'characters',
+                characterName
+            );
+            
+            if (characterData) {
+                const descriptionElement = popup.querySelector('.character-description p');
+                if (descriptionElement && characterData.description) {
+                    descriptionElement.textContent = characterData.description.substring(0, 200) + 
+                        (characterData.description.length > 200 ? '...' : '');
+                }
+                
+                // TODO: Load character image
+                // const imageElement = popup.querySelector('.character-image img');
+                // if (imageElement && characterData.imagePath) {
+                //     imageElement.src = characterData.imagePath;
+                // }
+            }
+        } catch (error) {
+            console.error('Error loading character data for popup:', error);
+        }
+    }
+
+    _setEditorWordWrap(enabled) {
+        if (this.editor && this.editor.contentArea) {
+            this.editor.contentArea.style.whiteSpace = enabled ? 'pre-wrap' : 'pre';
+        }
+    }
+
+    /**
+     * Create a character name element with color coding and hover functionality
+     * @param {string} characterName - The name of the character
+     * @param {Object} options - Additional options
+     * @returns {HTMLElement} The character element
+     */
+    createCharacterElement(characterName, options = {}) {
+        const settings = this._loadSettings();
+        const span = document.createElement('span');
+        span.textContent = characterName;
+        span.dataset.character = characterName;
+        
+        if (settings.characterColors?.enabled) {
+            const colorClass = this._getCharacterColor(characterName);
+            span.classList.add(colorClass);
+        }
+        
+        if (settings.characterHover?.enabled) {
+            span.classList.add('character-hoverable');
+        }
+        
+        return span;
+    }
+
+    /**
+     * Get or assign a color class to a character
+     * @param {string} characterName - The name of the character
+     * @returns {string} The CSS class name for the character color
+     */
+    _getCharacterColor(characterName) {
+        const settings = this._loadSettings();
+        
+        // Check if character already has an assigned color
+        if (settings.characterColors.assignments[characterName]) {
+            return settings.characterColors.assignments[characterName];
+        }
+        
+        // Auto-assign a color if enabled
+        if (settings.characterColors.autoAssign) {
+            const availableColors = [
+                'character-color-1', 'character-color-2', 'character-color-3', 'character-color-4',
+                'character-color-5', 'character-color-6', 'character-color-7', 'character-color-8'
+            ];
+            
+            const usedColors = Object.values(settings.characterColors.assignments);
+            const availableColorsList = availableColors.filter(color => !usedColors.includes(color));
+            
+            // If all colors are used, cycle through them
+            const colorIndex = Object.keys(settings.characterColors.assignments).length % availableColors.length;
+            const assignedColor = availableColorsList.length > 0 ? 
+                availableColorsList[0] : availableColors[colorIndex];
+            
+            // Save the assignment
+            settings.characterColors.assignments[characterName] = assignedColor;
+            localStorage.setItem('writerStudio_settings', JSON.stringify(settings, null, 2));
+            
+            return assignedColor;
+        }
+        
+        return '';
+    }
+
+    /**
+     * Process text and wrap character names with color-coded elements
+     * @param {string} text - The text to process
+     * @param {Array} characterNames - Array of character names to look for
+     * @returns {string} HTML string with character names wrapped
+     */
+    processTextForCharacterNames(text, characterNames = []) {
+        if (!characterNames.length) {
+            return text;
+        }
+        
+        const settings = this._loadSettings();
+        if (!settings.characterColors?.enabled && !settings.characterHover?.enabled) {
+            return text;
+        }
+        
+        let processedText = text;
+        
+        // Sort by length (longest first) to avoid partial matches
+        const sortedNames = [...characterNames].sort((a, b) => b.length - a.length);
+        
+        sortedNames.forEach(name => {
+            const regex = new RegExp(`\\b${this._escapeRegex(name)}\\b`, 'gi');
+            processedText = processedText.replace(regex, (match) => {
+                const colorClass = settings.characterColors?.enabled ? this._getCharacterColor(match) : '';
+                const hoverClass = settings.characterHover?.enabled ? 'character-hoverable' : '';
+                const classes = [colorClass, hoverClass].filter(c => c).join(' ');
+                
+                return `<span class="${classes}" data-character="${match}">${match}</span>`;
+            });
+        });
+        
+        return processedText;
+    }
+
+    /**
+     * Escape special regex characters
+     * @param {string} string - String to escape
+     * @returns {string} Escaped string
+     */
+    _escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    /**
+     * Get list of character names from current project
+     * @returns {Promise<Array>} Array of character names
+     */
+    async _getProjectCharacterNames() {
+        try {
+            if (!AppState.currentProject) return [];
+            
+            const characters = await this.electronAPI.getCharacters(AppState.currentProject);
+            return characters.map(char => char.name || char.displayName).filter(name => name);
+        } catch (error) {
+            console.error('Error getting character names:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Handle editor save action
+     * @param {string} content - HTML content
+     * @param {string} text - Plain text content
+     */
+    _handleEditorSave(content, text) {
+        // This will be called by the editor's save button
+        // The actual save logic is handled in saveEditorData
+        console.log('Editor save triggered from toolbar');
+        
+        // Try to find the current item being edited
+        const sectionTitle = document.getElementById('section-title');
+        if (sectionTitle && sectionTitle.textContent.startsWith('Editing:')) {
+            // Extract item info from the title
+            const titleText = sectionTitle.textContent;
+            const match = titleText.match(/Editing: (.+) \((.+)\)/);
+            if (match) {
+                const itemName = match[1];
+                const itemType = match[2];
+                this.saveEditorData(itemType, itemName);
+            }
+        }
+    }
+
+    /**
+     * Handle editor save as action
+     * @param {string} content - HTML content  
+     * @param {string} text - Plain text content
+     */
+    async _handleEditorSaveAs(content, text) {
+        try {
+            const newName = await this.modalManager.showInput({
+                title: 'Save As',
+                message: 'Enter a new name for this item:',
+                placeholder: 'New item name...'
+            });
+
+            if (newName) {
+                // Create a new item with the content
+                const currentSection = AppState.currentSection === 'editor' ? 'chapters' : AppState.currentSection;
+                await this.createNewItem(currentSection, newName);
+                
+                // Save the content to the new item
+                await this.saveEditorData(currentSection, newName);
+                
+                this.toastManager.success(`Saved as "${newName}"`);
+            }
+        } catch (error) {
+            console.error('Error in save as:', error);
+            this.toastManager.error('Failed to save as new item');
+        }
     }
 
     showWelcomeMessage() {
